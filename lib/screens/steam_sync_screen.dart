@@ -83,7 +83,7 @@ class _SteamSyncScreenState extends State<SteamSyncScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Error connecting to Steam: $e';
+        _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       });
     }
   }

@@ -14,10 +14,26 @@ void main() {
       );
     });
 
-    test('extracts numeric steamID from profile URL', () {
+    test('extracts numeric steamID from profile URL and various formats', () {
       expect(
         SteamService.extractUsernameOrId('https://steamcommunity.com/profiles/76561198028175941'),
         '76561198028175941',
+      );
+      expect(
+        SteamService.extractUsernameOrId('https://steamcommunity.com/profiles/76561199041297020/'),
+        '76561199041297020',
+      );
+      expect(
+        SteamService.extractUsernameOrId('profiles/76561199041297020/'),
+        '76561199041297020',
+      );
+      expect(
+        SteamService.extractUsernameOrId('76561199041297020/'),
+        '76561199041297020',
+      );
+      expect(
+        SteamService.extractUsernameOrId('  76561199041297020  '),
+        '76561199041297020',
       );
     });
 

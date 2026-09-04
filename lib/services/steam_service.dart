@@ -41,16 +41,35 @@ class SteamService {
     3444230: 'Abulia',
   };
 
+  static const Map<String, String> _defaultHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+  };
+
   /// Extracts the username, vanity slug, or SteamID64 from a URL or raw text
   static String extractUsernameOrId(String input) {
     var clean = input.trim();
-    if (clean.contains('steamcommunity.com/id/')) {
-      final match = RegExp(r'steamcommunity\.com/id/([^/?#]+)').firstMatch(clean);
-      if (match != null) return match.group(1)!;
-    } else if (clean.contains('steamcommunity.com/profiles/')) {
-      final match = RegExp(r'steamcommunity\.com/profiles/([^/?#]+)').firstMatch(clean);
-      if (match != null) return match.group(1)!;
+    // 1. Direct match for 17-digit SteamID (e.g. 76561199041297020) anywhere in input or URL
+    final id64Match = RegExp(r'(?:profiles/|\b)(7656\d{13})\b').firstMatch(clean);
+    if (id64Match != null) {
+      return id64Match.group(1)!;
     }
+
+    // 2. Vanity URL or custom id slug (e.g. steamcommunity.com/id/vanity/ or id/vanity)
+    final vanityMatch = RegExp(r'(?:steamcommunity\.com/id/|/id/|^id/)([^/?#]+)').firstMatch(clean);
+    if (vanityMatch != null) {
+      return vanityMatch.group(1)!;
+    }
+
+    // 3. Fallback for any profiles/slug
+    final profilesMatch = RegExp(r'(?:steamcommunity\.com/profiles/|/profiles/|^profiles/)([^/?#]+)').firstMatch(clean);
+    if (profilesMatch != null) {
+      return profilesMatch.group(1)!;
+    }
+
+    // 4. Remove leading/trailing slashes or query parameters
+    clean = clean.replaceAll(RegExp(r'^/+|\?.*$|#.*$|/+$'), '').trim();
     return clean;
   }
 
@@ -65,7 +84,11 @@ class SteamService {
         : 'https://steamcommunity.com/id/$clean/?xml=1';
 
     try {
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
+      final res = await http.get(
+        Uri.parse(url),
+        headers: _defaultHeaders,
+      ).timeout(const Duration(seconds: 12));
+
       if (res.statusCode == 200) {
         final body = res.body;
 
@@ -119,7 +142,16 @@ class SteamService {
           };
         }
       }
-    } catch (_) {}
+    } on SocketException catch (e) {
+      throw Exception('Network error: Unable to reach Steam ($e). Please check your internet connection.');
+    } on http.ClientException catch (e) {
+      throw Exception('Network error connecting to Steam ($e).');
+    } catch (e) {
+      if (e.toString().contains('TimeoutException')) {
+        throw Exception('Steam connection timed out. Please verify your internet connection.');
+      }
+      if (e.toString().contains('Network error')) rethrow;
+    }
     return null;
   }
 
@@ -268,16 +300,22 @@ class SteamService {
       games = await fetchOwnedGames(apiKey: effectiveApiKey, steamId: steamId);
     }
 
-    // 3. If no games from API, look for recent XML games or public activity (reviews, badges)
+    // 3. If no games from API, look for recent XML games and public activity (reviews, badges)
     if (games.isEmpty) {
-      if (recentGames.isNotEmpty) {
-        games = recentGames;
-      } else {
-        final activityGames = await fetchPublicReviewedAndBadgeGames(steamId);
-        if (activityGames.isNotEmpty) {
-          games = activityGames;
+      final Map<int, SteamGame> gameMap = {};
+      for (final g in recentGames) {
+        gameMap[g.appId] = g;
+      }
+      final activityGames = await fetchPublicReviewedAndBadgeGames(steamId);
+      for (final g in activityGames) {
+        if (!gameMap.containsKey(g.appId)) {
+          gameMap[g.appId] = g;
+        } else if (g.playtimeForeverMinutes > gameMap[g.appId]!.playtimeForeverMinutes) {
+          gameMap[g.appId] = g;
         }
       }
+      games = gameMap.values.toList()
+        ..sort((a, b) => b.playtimeForeverMinutes.compareTo(a.playtimeForeverMinutes));
     }
 
     // NEVER inject fake games into real profiles!
