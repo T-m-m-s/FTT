@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ftt/main.dart';
 import 'package:ftt/services/database_service.dart';
+import 'package:ftt/services/update_service.dart';
 
 void main() {
   setUp(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    UpdateService.enableAutoCheck = false;
     await DatabaseService().init();
   });
 

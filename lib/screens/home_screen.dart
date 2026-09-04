@@ -3,6 +3,7 @@ import '../models/library_entry.dart';
 import '../models/media_type.dart';
 import '../models/play_session.dart';
 import '../services/database_service.dart';
+import '../services/update_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/hero_banner.dart';
 import '../widgets/playing_now_card.dart';
@@ -63,44 +64,72 @@ class HomeScreen extends StatelessWidget {
                         // Mode Switcher Pill (Games vs Cinema)
                         _buildModeSwitcher(context, db),
 
-                        // Steam Sync Button
-                        GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1B2838).withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: db.steamProfile != null
-                                    ? AppColors.statusCompleted.withValues(alpha: 0.6)
-                                    : Colors.white.withValues(alpha: 0.2),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Steam Sync Button
+                            GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.cloud_sync_rounded,
-                                  size: 16,
-                                  color: db.steamProfile != null
-                                      ? AppColors.statusCompleted
-                                      : Colors.white,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  db.steamProfile != null ? 'Steam Connected' : 'Steam Sync',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1B2838).withValues(alpha: 0.85),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: db.steamProfile != null
+                                        ? AppColors.statusCompleted.withValues(alpha: 0.6)
+                                        : Colors.white.withValues(alpha: 0.2),
                                   ),
                                 ),
-                              ],
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.cloud_sync_rounded,
+                                      size: 16,
+                                      color: db.steamProfile != null
+                                          ? AppColors.statusCompleted
+                                          : Colors.white,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      db.steamProfile != null ? 'Steam Connected' : 'Steam Sync',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            // Check for Updates Button
+                            GestureDetector(
+                              onTap: () => UpdateService.checkUpdateManually(context),
+                              child: Tooltip(
+                                message: 'Check for Updates',
+                                child: Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceElevated.withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.system_update_rounded,
+                                    size: 16,
+                                    color: AppColors.primaryLight,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

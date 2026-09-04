@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/library_entry.dart';
+import '../services/update_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/floating_nav_bar.dart';
 import 'home_screen.dart';
@@ -18,6 +19,14 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentTabIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkUpdateOnStartup(context);
+    });
+  }
 
   void _openDetail(LibraryEntry entry) {
     Navigator.push(
