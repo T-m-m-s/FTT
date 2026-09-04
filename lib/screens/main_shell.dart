@@ -33,8 +33,8 @@ class _MainShellState extends State<MainShell> {
     final List<Widget> screens = [
       HomeScreen(onOpenDetail: _openDetail),
       LibraryScreen(onOpenDetail: _openDetail),
-      const TimelineScreen(),
-      const StatisticsScreen(),
+      TimelineScreen(onOpenDetail: _openDetail),
+      StatisticsScreen(onOpenDetail: _openDetail),
       SearchScreen(onOpenDetail: _openDetail),
     ];
 

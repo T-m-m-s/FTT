@@ -5,7 +5,6 @@ import '../models/media_item.dart';
 import '../models/media_type.dart';
 import '../services/database_service.dart';
 import '../services/igdb_service.dart';
-import '../services/sample_data.dart';
 import '../theme/app_colors.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -49,19 +48,12 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _isSearching = true);
 
     _debounce = Timer(const Duration(milliseconds: 400), () async {
-      // 1. Live search from IGDB for games
-      final liveGames = await igdb.searchGames(query, limit: 15);
-
-      // 2. Filter cinema from local sample catalog
-      final cinemaMatches = SampleData.sampleCinema.where((item) {
-        final titleMatch = item.title.toLowerCase().contains(query.toLowerCase());
-        final genreMatch = item.genres.any((g) => g.toLowerCase().contains(query.toLowerCase()));
-        return titleMatch || genreMatch;
-      }).toList();
+      // Live search from IGDB for games
+      final liveGames = await igdb.searchGames(query, limit: 20);
 
       if (mounted) {
         setState(() {
-          _searchResults = [...liveGames, ...cinemaMatches];
+          _searchResults = liveGames;
           _isSearching = false;
         });
       }
@@ -70,8 +62,22 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final defaultCatalog = [...SampleData.sampleGames, ...SampleData.sampleCinema];
-    final displayItems = _query.trim().isEmpty ? defaultCatalog : _searchResults;
+    final libraryItems = db.currentLibraryFiltered.map((e) => e.mediaItem).toList();
+    final isQueryEmpty = _query.trim().isEmpty;
+    final displayItems = isQueryEmpty ? libraryItems : _searchResults;
+
+    final genres = [
+      'RPG',
+      'Roguelike',
+      'Action',
+      'Indie',
+      'Souls-like',
+      'Deckbuilder',
+      'Open World',
+      'Horror',
+      'Platformer',
+      'Strategy',
+    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -80,6 +86,7 @@ class _SearchScreenState extends State<SearchScreen> {
         title: const Text('Discover & Search'),
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Search Input
           Padding(
@@ -95,7 +102,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: const TextStyle(color: Colors.white),
                 onChanged: _onSearchChanged,
                 decoration: InputDecoration(
-                  hintText: 'Search games, movies, series (e.g. NieR, Zelda)...',
+                  hintText: 'Search any game via IGDB (e.g. Elden Ring, Balatro)...',
                   hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
                   prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
                   suffixIcon: _query.isNotEmpty
@@ -114,14 +121,41 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
 
+          // Genre discovery chips
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: genres.length,
+              itemBuilder: (context, index) {
+                final genre = genres[index];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: ActionChip(
+                    label: Text(genre),
+                    labelStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    backgroundColor: AppColors.surfaceElevated,
+                    side: const BorderSide(color: AppColors.borderSubtle),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    onPressed: () {
+                      _searchController.text = genre;
+                      _onSearchChanged(genre);
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+
           // Results count & Loading Indicator
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: [
                 Text(
-                  _query.isEmpty
-                      ? 'Trending & Curated'
+                  isQueryEmpty
+                      ? (libraryItems.isNotEmpty ? 'In Your Library (${libraryItems.length})' : 'Explore & Search Games')
                       : (_isSearching ? 'Searching IGDB Live...' : 'Results (${displayItems.length})'),
                   style: const TextStyle(
                     color: AppColors.textSecondary,

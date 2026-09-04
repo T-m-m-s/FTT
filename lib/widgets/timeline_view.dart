@@ -6,27 +6,83 @@ import '../theme/app_colors.dart';
 class TimelineView extends StatelessWidget {
   final List<PlaySession> sessions;
   final Function(PlaySession)? onSessionTap;
+  final VoidCallback? onConnectSteam;
+  final VoidCallback? onLogSession;
 
   const TimelineView({
     super.key,
     required this.sessions,
     this.onSessionTap,
+    this.onConnectSteam,
+    this.onLogSession,
   });
 
   @override
   Widget build(BuildContext context) {
     if (sessions.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history_toggle_off_rounded, size: 64, color: AppColors.textMuted),
-            const SizedBox(height: 12),
-            const Text(
-              'No play sessions recorded yet',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.borderSubtle),
+                ),
+                child: const Icon(Icons.timeline_rounded, size: 40, color: AppColors.primaryLight),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'No Play Sessions Yet',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your gaming timeline will track sessions chronologically as you log time or sync with Steam.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.4),
+              ),
+              const SizedBox(height: 24),
+              if (onConnectSteam != null)
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.cloud_sync_rounded, size: 18),
+                  label: const Text('Connect Steam Profile'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1B2838),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: AppColors.primary),
+                    ),
+                  ),
+                  onPressed: onConnectSteam,
+                ),
+              if (onLogSession != null) ...[
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Log a Session Manually'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.textPrimary,
+                    side: const BorderSide(color: AppColors.borderSubtle),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: onLogSession,
+                ),
+              ],
+            ],
+          ),
         ),
       );
     }

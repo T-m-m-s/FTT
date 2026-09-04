@@ -26,14 +26,12 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Initialize database with rich data
+  /// Initialize database - starts clean with real user data only
   Future<void> init() async {
-    if (_library.isEmpty) {
-      _library.addAll(SampleData.getInitialLibrary());
-      _sessions.addAll(SampleData.getInitialSessions());
-      _sessions.sort((a, b) => b.date.compareTo(a.date));
-      notifyListeners();
-    }
+    // Purge any legacy sample data so only real user data appears
+    _library.removeWhere((e) => e.id.startsWith('entry_game_') || e.mediaId.startsWith('game_'));
+    _sessions.removeWhere((s) => s.id.startsWith('sess_game_') || s.mediaId.startsWith('game_'));
+    notifyListeners();
   }
 
   // Filtered queries
@@ -57,6 +55,12 @@ class DatabaseService extends ChangeNotifier {
     return currentLibraryFiltered
         .where((e) => e.status == LibraryStatus.completed)
         .toList();
+  }
+
+  List<LibraryEntry> topPlayedGames({int limit = 5}) {
+    final played = currentLibraryFiltered.where((e) => e.timeSpentMinutes > 0).toList()
+      ..sort((a, b) => b.timeSpentMinutes.compareTo(a.timeSpentMinutes));
+    return played.take(limit).toList();
   }
 
   List<PlaySession> get currentSessionsFiltered {
@@ -121,11 +125,33 @@ class DatabaseService extends ChangeNotifier {
   // Steam Sync integration
   void clearSteamProfile() {
     _steamProfile = null;
+    _library.removeWhere((e) => e.id.startsWith('entry_steam_'));
+    _sessions.removeWhere((s) => s.id.startsWith('steam_session_'));
+    notifyListeners();
+  }
+
+  void clearAllData() {
+    _library.clear();
+    _sessions.clear();
+    _steamProfile = null;
+    notifyListeners();
+  }
+
+  void loadSampleData() {
+    _library.clear();
+    _sessions.clear();
+    _library.addAll(SampleData.getInitialLibrary());
+    _sessions.addAll(SampleData.getInitialSessions());
+    _sessions.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
   }
 
   void setSteamProfile(SteamProfile profile) {
     _steamProfile = profile;
+
+    // Remove any hardcoded sample entries when connecting real Steam profile
+    _library.removeWhere((e) => e.id.startsWith('entry_game_') || e.mediaId.startsWith('game_'));
+    _sessions.removeWhere((s) => s.id.startsWith('sess_game_') || s.mediaId.startsWith('game_'));
 
     // Merge Steam games into Library
     for (final steamGame in profile.games) {
@@ -133,11 +159,27 @@ class DatabaseService extends ChangeNotifier {
         (e) => e.mediaItem.steamAppId == steamGame.appId || e.mediaItem.title.toLowerCase() == steamGame.name.toLowerCase(),
       );
 
+      final hasPlayed = steamGame.playtimeForeverMinutes > 0;
+      final lastPlayedDate = (steamGame.rtimeLastPlayed != null && steamGame.rtimeLastPlayed! > 0)
+          ? DateTime.fromMillisecondsSinceEpoch(steamGame.rtimeLastPlayed! * 1000)
+          : null;
+
+      // Classify status:
+      // Over 2400 mins (40h) -> completed/mastered
+      // Has played -> playing
+      // Unplayed -> backlog
+      final LibraryStatus status = !hasPlayed
+          ? LibraryStatus.backlog
+          : (steamGame.playtimeForeverMinutes >= 2400 ? LibraryStatus.completed : LibraryStatus.playing);
+
       if (existingIndex >= 0) {
         // Update hours from Steam
         final existing = _library[existingIndex];
         if (steamGame.playtimeForeverMinutes > existing.timeSpentMinutes) {
           existing.timeSpentMinutes = steamGame.playtimeForeverMinutes;
+        }
+        if (lastPlayedDate != null) {
+          existing.lastActivity = lastPlayedDate;
         }
         existing.platform = 'PC - Steam';
         existing.isOwned = true;
@@ -163,23 +205,48 @@ class DatabaseService extends ChangeNotifier {
           id: 'entry_steam_${steamGame.appId}',
           mediaId: newItem.id,
           mediaItem: newItem,
-          status: steamGame.playtimeForeverMinutes > 0
-              ? (steamGame.playtimeForeverMinutes > 3000 ? LibraryStatus.completed : LibraryStatus.playing)
-              : LibraryStatus.backlog,
+          status: status,
           platform: 'PC - Steam',
           format: 'Digital',
           isOwned: true,
           timeSpentMinutes: steamGame.playtimeForeverMinutes,
-          progressPercent: steamGame.playtimeForeverMinutes > 3000 ? 100.0 : 45.0,
-          lastActivity: steamGame.rtimeLastPlayed != null
-              ? DateTime.fromMillisecondsSinceEpoch(steamGame.rtimeLastPlayed! * 1000)
-              : DateTime.now().subtract(const Duration(days: 4)),
+          progressPercent: status == LibraryStatus.completed
+              ? 100.0
+              : (hasPlayed ? 50.0 : 0.0),
+          lastActivity: lastPlayedDate ?? DateTime.now().subtract(const Duration(days: 30)),
         );
 
         _library.add(newEntry);
       }
+
+      // Automatically generate PlaySession for the Timeline if game was played
+      if (hasPlayed && lastPlayedDate != null) {
+        final sessionId = 'steam_session_${steamGame.appId}_${steamGame.rtimeLastPlayed}';
+        final sessionExists = _sessions.any((s) => s.id == sessionId);
+
+        if (!sessionExists) {
+          final durationMins = steamGame.playtime2WeeksMinutes > 0
+              ? steamGame.playtime2WeeksMinutes
+              : (steamGame.playtimeForeverMinutes > 120 ? 120 : steamGame.playtimeForeverMinutes);
+
+          _sessions.add(PlaySession(
+            id: sessionId,
+            mediaId: 'steam_${steamGame.appId}',
+            mediaTitle: steamGame.name,
+            mediaPoster: steamGame.posterUrl,
+            mediaType: MediaType.game,
+            date: lastPlayedDate,
+            durationMinutes: durationMins > 0 ? durationMins : 60,
+            platform: 'PC - Steam',
+            notes: 'Steam play session (${(steamGame.playtimeForeverMinutes / 60).toStringAsFixed(1)}h total recorded on Steam)',
+            progressPercentage: status == LibraryStatus.completed ? 100.0 : null,
+            isCompletion: status == LibraryStatus.completed,
+          ));
+        }
+      }
     }
 
+    _sessions.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
   }
 }
