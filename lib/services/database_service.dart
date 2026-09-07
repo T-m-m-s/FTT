@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/media_item.dart';
 import '../models/media_type.dart';
 import '../models/library_entry.dart';
@@ -10,6 +12,13 @@ class DatabaseService extends ChangeNotifier {
   static final DatabaseService _instance = DatabaseService._internal();
   factory DatabaseService() => _instance;
   DatabaseService._internal();
+
+  static const String _keyLibrary = 'ftt_library';
+  static const String _keySessions = 'ftt_sessions';
+  static const String _keySteamProfile = 'ftt_steam_profile';
+  static const String _keyActiveFilter = 'ftt_active_filter';
+
+  SharedPreferences? _prefs;
 
   final List<LibraryEntry> _library = [];
   final List<PlaySession> _sessions = [];
@@ -23,21 +32,159 @@ class DatabaseService extends ChangeNotifier {
 
   void setMediaFilter(MediaType type) {
     _activeMediaFilter = type;
+    _persistFilter();
     notifyListeners();
   }
 
-  /// Initialize database - starts clean with real user data only
+  Future<SharedPreferences?> _getPrefs() async {
+    if (_prefs != null) return _prefs;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      return _prefs;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Initialize database - restores persistent state across app restarts
   Future<void> init() async {
+    final prefs = await _getPrefs();
+
+    // 1. Load active filter
+    final savedFilter = prefs?.getString(_keyActiveFilter);
+    if (savedFilter != null && savedFilter.isNotEmpty) {
+      try {
+        _activeMediaFilter = MediaType.values.byName(savedFilter);
+      } catch (_) {}
+    }
+
+    // 2. Load Steam Profile
+    final profileJson = prefs?.getString(_keySteamProfile);
+    if (profileJson != null && profileJson.isNotEmpty) {
+      try {
+        final map = jsonDecode(profileJson) as Map<String, dynamic>;
+        _steamProfile = SteamProfile.fromMap(map);
+      } catch (e) {
+        debugPrint('Error loading saved Steam profile: $e');
+      }
+    }
+
+    // 3. Load Library
+    final libraryJson = prefs?.getString(_keyLibrary);
+    if (libraryJson != null && libraryJson.isNotEmpty) {
+      try {
+        final list = jsonDecode(libraryJson) as List<dynamic>;
+        _library.clear();
+        for (final item in list) {
+          _library.add(LibraryEntry.fromMap(Map<String, dynamic>.from(item as Map)));
+        }
+      } catch (e) {
+        debugPrint('Error loading saved library: $e');
+      }
+    }
+
+    // 4. Load Sessions
+    final sessionsJson = prefs?.getString(_keySessions);
+    if (sessionsJson != null && sessionsJson.isNotEmpty) {
+      try {
+        final list = jsonDecode(sessionsJson) as List<dynamic>;
+        _sessions.clear();
+        for (final item in list) {
+          _sessions.add(PlaySession.fromMap(Map<String, dynamic>.from(item as Map)));
+        }
+        _sessions.sort((a, b) => b.date.compareTo(a.date));
+      } catch (e) {
+        debugPrint('Error loading saved sessions: $e');
+      }
+    }
+
     // Purge any legacy sample data so only real user data appears
+    final initialLibCount = _library.length;
     _library.removeWhere((e) => e.id.startsWith('entry_game_') || e.mediaId.startsWith('game_'));
+    if (_library.length != initialLibCount) _persistLibrary();
+
+    final initialSessCount = _sessions.length;
     _sessions.removeWhere((s) => s.id.startsWith('sess_game_') || s.mediaId.startsWith('game_'));
+    if (_sessions.length != initialSessCount) _persistSessions();
+
     notifyListeners();
+  }
+
+  // Persistence helpers
+  Future<void> _persistLibrary() async {
+    try {
+      final prefs = await _getPrefs();
+      if (prefs == null) return;
+      final jsonString = jsonEncode(_library.map((e) => e.toMap()).toList());
+      await prefs.setString(_keyLibrary, jsonString);
+    } catch (e) {
+      debugPrint('Error persisting library: $e');
+    }
+  }
+
+  Future<void> _persistSessions() async {
+    try {
+      final prefs = await _getPrefs();
+      if (prefs == null) return;
+      final jsonString = jsonEncode(_sessions.map((s) => s.toMap()).toList());
+      await prefs.setString(_keySessions, jsonString);
+    } catch (e) {
+      debugPrint('Error persisting sessions: $e');
+    }
+  }
+
+  Future<void> _persistSteamProfile() async {
+    try {
+      final prefs = await _getPrefs();
+      if (prefs == null) return;
+      if (_steamProfile != null) {
+        await prefs.setString(_keySteamProfile, jsonEncode(_steamProfile!.toMap()));
+      } else {
+        await prefs.remove(_keySteamProfile);
+      }
+    } catch (e) {
+      debugPrint('Error persisting Steam profile: $e');
+    }
+  }
+
+  Future<void> _persistFilter() async {
+    try {
+      final prefs = await _getPrefs();
+      if (prefs == null) return;
+      await prefs.setString(_keyActiveFilter, _activeMediaFilter.name);
+    } catch (e) {
+      debugPrint('Error persisting filter: $e');
+    }
+  }
+
+  /// Explicit flush of all state to storage
+  Future<void> persistAll() async {
+    await Future.wait([
+      _persistLibrary(),
+      _persistSessions(),
+      _persistSteamProfile(),
+      _persistFilter(),
+    ]);
   }
 
   // Filtered queries
   List<LibraryEntry> get currentLibraryFiltered {
-    return _library.where((entry) => entry.mediaItem.mediaType == _activeMediaFilter).toList();
+    if (_activeMediaFilter == MediaType.game) {
+      return _library.where((entry) => entry.mediaItem.mediaType == MediaType.game).toList();
+    } else {
+      return _library
+          .where((entry) =>
+              entry.mediaItem.mediaType == MediaType.movie ||
+              entry.mediaItem.mediaType == MediaType.tvShow)
+          .toList();
+    }
   }
+
+  List<LibraryEntry> get movieItems =>
+      _library.where((e) => e.mediaItem.mediaType == MediaType.movie).toList();
+
+  List<LibraryEntry> get tvItems =>
+      _library.where((e) => e.mediaItem.mediaType == MediaType.tvShow).toList();
 
   List<LibraryEntry> get playingItems {
     return currentLibraryFiltered
@@ -64,8 +211,15 @@ class DatabaseService extends ChangeNotifier {
   }
 
   List<PlaySession> get currentSessionsFiltered {
-    return _sessions.where((s) => s.mediaType == _activeMediaFilter).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    if (_activeMediaFilter == MediaType.game) {
+      return _sessions.where((s) => s.mediaType == MediaType.game).toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+    } else {
+      return _sessions
+          .where((s) => s.mediaType == MediaType.movie || s.mediaType == MediaType.tvShow)
+          .toList()
+        ..sort((a, b) => b.date.compareTo(a.date));
+    }
   }
 
   // Add or update library entry
@@ -76,6 +230,7 @@ class DatabaseService extends ChangeNotifier {
     } else {
       _library.add(entry);
     }
+    _persistLibrary();
     notifyListeners();
   }
 
@@ -86,6 +241,7 @@ class DatabaseService extends ChangeNotifier {
       if (status == LibraryStatus.completed) {
         _library[index].progressPercent = 100.0;
       }
+      _persistLibrary();
       notifyListeners();
     }
   }
@@ -94,6 +250,7 @@ class DatabaseService extends ChangeNotifier {
     final index = _library.indexWhere((e) => e.mediaId == mediaId);
     if (index >= 0) {
       _library[index].userRating = rating;
+      _persistLibrary();
       notifyListeners();
     }
   }
@@ -118,7 +275,9 @@ class DatabaseService extends ChangeNotifier {
       if (session.rating != null) {
         entry.userRating = session.rating;
       }
+      _persistLibrary();
     }
+    _persistSessions();
     notifyListeners();
   }
 
@@ -127,6 +286,9 @@ class DatabaseService extends ChangeNotifier {
     _steamProfile = null;
     _library.removeWhere((e) => e.id.startsWith('entry_steam_'));
     _sessions.removeWhere((s) => s.id.startsWith('steam_session_'));
+    _persistSteamProfile();
+    _persistLibrary();
+    _persistSessions();
     notifyListeners();
   }
 
@@ -134,6 +296,9 @@ class DatabaseService extends ChangeNotifier {
     _library.clear();
     _sessions.clear();
     _steamProfile = null;
+    _persistSteamProfile();
+    _persistLibrary();
+    _persistSessions();
     notifyListeners();
   }
 
@@ -143,6 +308,8 @@ class DatabaseService extends ChangeNotifier {
     _library.addAll(SampleData.getInitialLibrary());
     _sessions.addAll(SampleData.getInitialSessions());
     _sessions.sort((a, b) => b.date.compareTo(a.date));
+    _persistLibrary();
+    _persistSessions();
     notifyListeners();
   }
 
@@ -193,7 +360,7 @@ class DatabaseService extends ChangeNotifier {
           backdropUrl: steamGame.headerUrl,
           releaseYear: 2020,
           releaseDateFormatted: 'Steam Library',
-          genres: ['Steam'],
+          genres: const ['Steam'],
           synopsis: 'Imported from your connected Steam Library.',
           communityRating: 8.5,
           creator: 'Valve / Steam',
@@ -247,6 +414,9 @@ class DatabaseService extends ChangeNotifier {
     }
 
     _sessions.sort((a, b) => b.date.compareTo(a.date));
+    _persistSteamProfile();
+    _persistLibrary();
+    _persistSessions();
     notifyListeners();
   }
 }

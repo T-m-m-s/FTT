@@ -59,13 +59,13 @@ class PlaySession {
 
   factory PlaySession.fromMap(Map<String, dynamic> map) {
     return PlaySession(
-      id: map['id'] as String,
-      mediaId: map['mediaId'] as String,
-      mediaTitle: map['mediaTitle'] as String,
-      mediaPoster: map['mediaPoster'] as String,
-      mediaType: MediaType.values.byName(map['mediaType'] as String),
-      date: DateTime.parse(map['date'] as String),
-      durationMinutes: map['durationMinutes'] as int,
+      id: map['id'] as String? ?? '',
+      mediaId: map['mediaId'] as String? ?? '',
+      mediaTitle: map['mediaTitle'] as String? ?? '',
+      mediaPoster: map['mediaPoster'] as String? ?? '',
+      mediaType: MediaType.values.byName(map['mediaType'] as String? ?? 'game'),
+      date: DateTime.tryParse(map['date'] as String? ?? '') ?? DateTime.now(),
+      durationMinutes: (map['durationMinutes'] as num?)?.toInt() ?? 0,
       progressPercentage: (map['progressPercentage'] as num?)?.toDouble(),
       platform: map['platform'] as String?,
       rating: (map['rating'] as num?)?.toDouble(),
@@ -73,7 +73,7 @@ class PlaySession {
       notes: map['notes'] as String? ?? '',
       achievements: (map['achievements'] as String?)?.isNotEmpty == true
           ? (map['achievements'] as String).split('|')
-          : [],
+          : const [],
     );
   }
 }

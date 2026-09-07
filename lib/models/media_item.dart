@@ -51,19 +51,23 @@ class MediaItem {
 
   factory MediaItem.fromMap(Map<String, dynamic> map) {
     return MediaItem(
-      id: map['id'] as String,
-      title: map['title'] as String,
-      mediaType: MediaType.values.byName(map['mediaType'] as String),
-      posterUrl: map['posterUrl'] as String,
-      backdropUrl: map['backdropUrl'] as String,
-      releaseYear: map['releaseYear'] as int,
+      id: map['id'] as String? ?? '',
+      title: map['title'] as String? ?? '',
+      mediaType: MediaType.values.byName(map['mediaType'] as String? ?? 'game'),
+      posterUrl: map['posterUrl'] as String? ?? '',
+      backdropUrl: map['backdropUrl'] as String? ?? '',
+      releaseYear: (map['releaseYear'] as num?)?.toInt() ?? 2020,
       releaseDateFormatted: map['releaseDateFormatted'] as String? ?? '',
-      genres: (map['genres'] as String).split(','),
+      genres: (map['genres'] as String?)
+              ?.split(',')
+              .where((g) => g.isNotEmpty)
+              .toList() ??
+          const [],
       synopsis: map['synopsis'] as String? ?? '',
       communityRating: (map['communityRating'] as num?)?.toDouble() ?? 0.0,
       creator: map['creator'] as String? ?? '',
-      steamAppId: map['steamAppId'] as int?,
-      runtimeMinutes: map['runtimeMinutes'] as int?,
+      steamAppId: (map['steamAppId'] as num?)?.toInt(),
+      runtimeMinutes: (map['runtimeMinutes'] as num?)?.toInt(),
     );
   }
 }

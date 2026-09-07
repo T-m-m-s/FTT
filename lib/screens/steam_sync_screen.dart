@@ -19,6 +19,14 @@ class _SteamSyncScreenState extends State<SteamSyncScreen> {
   bool _showAdvanced = false;
 
   @override
+  void initState() {
+    super.initState();
+    if (db.steamProfile != null) {
+      _usernameController.text = db.steamProfile!.steamId;
+    }
+  }
+
+  @override
   void dispose() {
     _usernameController.dispose();
     _apiKeyController.dispose();

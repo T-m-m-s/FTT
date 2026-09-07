@@ -1,4 +1,5 @@
 import 'media_item.dart';
+import 'media_type.dart';
 
 enum LibraryStatus {
   playing,
@@ -87,6 +88,7 @@ class LibraryEntry {
     return {
       'id': id,
       'mediaId': mediaId,
+      'mediaItem': mediaItem.toMap(),
       'status': status.name,
       'userRating': userRating,
       'platform': platform,
@@ -101,5 +103,46 @@ class LibraryEntry {
       'lastActivity': lastActivity?.toIso8601String(),
       'addedDate': addedDate.toIso8601String(),
     };
+  }
+
+  factory LibraryEntry.fromMap(Map<String, dynamic> map) {
+    return LibraryEntry(
+      id: map['id'] as String? ?? '',
+      mediaId: map['mediaId'] as String? ?? '',
+      mediaItem: map['mediaItem'] != null
+          ? MediaItem.fromMap(Map<String, dynamic>.from(map['mediaItem'] as Map))
+          : MediaItem(
+              id: map['mediaId'] as String? ?? 'unknown',
+              title: 'Unknown Title',
+              mediaType: MediaType.game,
+              posterUrl: '',
+              backdropUrl: '',
+              releaseYear: 2020,
+              releaseDateFormatted: '',
+              genres: const [],
+              synopsis: '',
+              communityRating: 0.0,
+              creator: '',
+            ),
+      status: LibraryStatus.values.byName(map['status'] as String? ?? 'backlog'),
+      userRating: (map['userRating'] as num?)?.toDouble(),
+      platform: map['platform'] as String? ?? 'PC - Steam',
+      format: map['format'] as String? ?? 'Digital',
+      isOwned: (map['isOwned'] as int? ?? 1) == 1,
+      pricePaid: (map['pricePaid'] as num?)?.toDouble(),
+      purchaseDate: map['purchaseDate'] != null
+          ? DateTime.tryParse(map['purchaseDate'] as String)
+          : null,
+      progressPercent: (map['progressPercent'] as num?)?.toDouble() ?? 0.0,
+      timeSpentMinutes: (map['timeSpentMinutes'] as num?)?.toInt() ?? 0,
+      playthroughCount: (map['playthroughCount'] as num?)?.toInt() ?? 1,
+      notes: map['notes'] as String? ?? '',
+      lastActivity: map['lastActivity'] != null
+          ? DateTime.tryParse(map['lastActivity'] as String)
+          : null,
+      addedDate: map['addedDate'] != null
+          ? DateTime.tryParse(map['addedDate'] as String)
+          : null,
+    );
   }
 }

@@ -2,10 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ftt/models/media_type.dart';
 import 'package:ftt/models/steam_profile.dart';
 import 'package:ftt/services/database_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUp(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
   });
 
   test('Database starts clean without any hardcoded games or sessions', () async {
