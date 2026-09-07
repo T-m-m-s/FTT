@@ -118,8 +118,8 @@ class StatisticsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Most Played Games Leaderboard
-              _buildTopPlayedSection(context, topPlayed),
+              // Most Played Games / Most Watched Cinema Leaderboard
+              _buildTopPlayedSection(context, topPlayed, isGame),
               const SizedBox(height: 24),
 
               // Library Status Breakdown
@@ -132,8 +132,8 @@ class StatisticsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Real Play Activity & History Calendar
-              _buildActivitySection(context, sessions, entries),
+              // Real Play / Watch Activity & History Calendar
+              _buildActivitySection(context, sessions, entries, isGame),
               const SizedBox(height: 24),
 
               // Ratings Distribution
@@ -203,7 +203,7 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTopPlayedSection(BuildContext context, List<LibraryEntry> topPlayed) {
+  Widget _buildTopPlayedSection(BuildContext context, List<LibraryEntry> topPlayed, bool isGame) {
     if (topPlayed.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(20),
@@ -212,19 +212,25 @@ class StatisticsScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.6)),
         ),
-        child: const Column(
+        child: Column(
           children: [
-            Icon(Icons.leaderboard_rounded, size: 36, color: AppColors.textMuted),
-            SizedBox(height: 10),
-            Text(
-              'No Playtime Logged Yet',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            Icon(
+              isGame ? Icons.leaderboard_rounded : Icons.movie_outlined,
+              size: 36,
+              color: AppColors.textMuted,
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 10),
             Text(
-              'Sync Steam or log play sessions to view your most played games.',
+              isGame ? 'No Playtime Logged Yet' : 'No Watch Time Logged Yet',
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isGame
+                  ? 'Sync Steam or log play sessions to view your most played games.'
+                  : 'Search titles or log watch sessions to view your most watched films and series.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
           ],
         ),
@@ -245,11 +251,15 @@ class StatisticsScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.leaderboard_rounded, color: AppColors.primaryLight, size: 20),
+              Icon(
+                isGame ? Icons.leaderboard_rounded : Icons.movie_creation_outlined,
+                color: AppColors.primaryLight,
+                size: 20,
+              ),
               const SizedBox(width: 8),
-              const Text(
-                'Most Played Games',
-                style: TextStyle(
+              Text(
+                isGame ? 'Most Played Games' : 'Most Watched Cinema',
+                style: const TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -306,7 +316,7 @@ class StatisticsScreen extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
 
-                    // Game Poster
+                    // Media Poster
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: Image.network(
@@ -318,7 +328,11 @@ class StatisticsScreen extends StatelessWidget {
                           width: 36,
                           height: 48,
                           color: AppColors.surfaceElevated,
-                          child: const Icon(Icons.broken_image, size: 16, color: AppColors.textMuted),
+                          child: Icon(
+                            isGame ? Icons.broken_image : Icons.movie_outlined,
+                            size: 16,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ),
                     ),
@@ -451,9 +465,9 @@ class StatisticsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildLegendItem('Playing', playing, AppColors.primary, (playingPct * 100).round()),
-              _buildLegendItem('Completed', completed, AppColors.statusCompleted, (completedPct * 100).round()),
-              _buildLegendItem('Backlog', backlog, AppColors.accentOrange, (backlogPct * 100).round()),
+              _buildLegendItem(isGame ? 'Playing' : 'Watching', playing, AppColors.primary, (playingPct * 100).round()),
+              _buildLegendItem(isGame ? 'Completed' : 'Finished', completed, AppColors.statusCompleted, (completedPct * 100).round()),
+              _buildLegendItem(isGame ? 'Backlog' : 'Watchlist', backlog, AppColors.accentOrange, (backlogPct * 100).round()),
             ],
           ),
         ],
@@ -491,6 +505,7 @@ class StatisticsScreen extends StatelessWidget {
     BuildContext context,
     List<PlaySession> sessions,
     List<LibraryEntry> entries,
+    bool isGame,
   ) {
     if (sessions.isEmpty) {
       return Container(
@@ -500,19 +515,25 @@ class StatisticsScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.6)),
         ),
-        child: const Column(
+        child: Column(
           children: [
-            Icon(Icons.calendar_today_rounded, size: 36, color: AppColors.textMuted),
-            SizedBox(height: 10),
-            Text(
-              'No Play History Logged',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            Icon(
+              isGame ? Icons.calendar_today_rounded : Icons.movie_outlined,
+              size: 36,
+              color: AppColors.textMuted,
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 10),
             Text(
-              'Connect Steam or log sessions to see monthly play activity.',
+              isGame ? 'No Play History Logged' : 'No Watch History Logged',
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              isGame
+                  ? 'Connect Steam or log sessions to see monthly play activity.'
+                  : 'Search titles or log watch sessions to see monthly activity.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
             ),
           ],
         ),
@@ -539,13 +560,13 @@ class StatisticsScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.calendar_month_rounded, color: AppColors.statusCompleted, size: 20),
-                  SizedBox(width: 8),
+                  const Icon(Icons.calendar_month_rounded, color: AppColors.statusCompleted, size: 20),
+                  const SizedBox(width: 8),
                   Text(
-                    'Monthly Activity',
-                    style: TextStyle(
+                    isGame ? 'Monthly Play Activity' : 'Monthly Watch Activity',
+                    style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,

@@ -40,11 +40,16 @@ class TimelineScreen extends StatelessWidget {
   }
 
   void _showLogSessionSheet(BuildContext context, DatabaseService db) {
+    final isGame = db.activeMediaFilter == MediaType.game;
     final library = db.currentLibraryFiltered;
     if (library.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add or sync games to your library before logging sessions.'),
+        SnackBar(
+          content: Text(
+            isGame
+                ? 'Please add or sync games to your library before logging sessions.'
+                : 'Please add films or series to your watchlist before logging sessions.',
+          ),
           backgroundColor: AppColors.surfaceElevated,
         ),
       );
@@ -52,7 +57,10 @@ class TimelineScreen extends StatelessWidget {
     }
 
     LibraryEntry selectedEntry = library.first;
-    int minutes = 60;
+    final defaultRuntime = selectedEntry.mediaItem.runtimeMinutes;
+    int minutes = (defaultRuntime != null && defaultRuntime > 0)
+        ? defaultRuntime
+        : (isGame ? 60 : (selectedEntry.mediaItem.mediaType == MediaType.tvShow ? 45 : 120));
     final notesController = TextEditingController();
 
     showModalBottomSheet(
@@ -86,9 +94,9 @@ class TimelineScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Log Play Session',
-                style: TextStyle(
+              Text(
+                isGame ? 'Log Play Session' : 'Log Watch Session',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -96,7 +104,7 @@ class TimelineScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
 
-              // Game Selector
+              // Media Selector
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
@@ -120,7 +128,15 @@ class TimelineScreen extends StatelessWidget {
                       );
                     }).toList(),
                     onChanged: (val) {
-                      if (val != null) setSheetState(() => selectedEntry = val);
+                      if (val != null) {
+                        setSheetState(() {
+                          selectedEntry = val;
+                          final rt = val.mediaItem.runtimeMinutes;
+                          if (rt != null && rt > 0) {
+                            minutes = rt;
+                          }
+                        });
+                      }
                     },
                   ),
                 ),
@@ -139,7 +155,7 @@ class TimelineScreen extends StatelessWidget {
                 ],
               ),
               Slider(
-                value: minutes.toDouble(),
+                value: minutes.toDouble().clamp(15.0, 360.0),
                 min: 15,
                 max: 360,
                 divisions: 23,
@@ -154,7 +170,7 @@ class TimelineScreen extends StatelessWidget {
                 controller: notesController,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'Notes / milestone reached...',
+                  hintText: isGame ? 'Notes / milestone reached...' : 'Episode / watch notes...',
                   hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                   filled: true,
                   fillColor: AppColors.surfaceElevated,

@@ -41,8 +41,43 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
     );
   }
 
+  void _quickLogCinemaSession({required int duration, required String note}) {
+    final session = PlaySession(
+      id: 'sess_${DateTime.now().millisecondsSinceEpoch}',
+      mediaId: _entry.mediaId,
+      mediaTitle: _entry.mediaItem.title,
+      mediaPoster: _entry.mediaItem.posterUrl,
+      mediaType: _entry.mediaItem.mediaType,
+      date: DateTime.now(),
+      durationMinutes: duration,
+      platform: _entry.platform,
+      notes: note,
+    );
+    db.addSession(session);
+    setState(() {
+      _entry.timeSpentMinutes += duration;
+      _entry.lastActivity = DateTime.now();
+      if (_entry.status == LibraryStatus.backlog || _entry.status == LibraryStatus.wishlist) {
+        _entry.status = LibraryStatus.playing;
+      }
+    });
+    db.addOrUpdateEntry(_entry);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Logged $note ($duration min) for ${_entry.mediaItem.title}'),
+        duration: const Duration(seconds: 2),
+        backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
   void _showAddSessionDialog() {
-    int minutes = 60;
+    final isTv = _entry.mediaItem.mediaType == MediaType.tvShow;
+    final isMovie = _entry.mediaItem.mediaType == MediaType.movie;
+    final defaultRuntime = _entry.mediaItem.runtimeMinutes;
+    int minutes = (defaultRuntime != null && defaultRuntime > 0)
+        ? defaultRuntime
+        : (isTv ? 45 : (isMovie ? 120 : 60));
     final notesController = TextEditingController();
 
     showDialog(
@@ -63,7 +98,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                 style: const TextStyle(color: AppColors.primaryLight, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Slider(
-                value: minutes.toDouble(),
+                value: minutes.toDouble().clamp(15.0, 360.0),
                 min: 15,
                 max: 360,
                 divisions: 23,
@@ -73,10 +108,12 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
               ),
               TextField(
                 controller: notesController,
-                decoration: const InputDecoration(
-                  hintText: 'Notes for this session...',
-                  hintStyle: TextStyle(color: AppColors.textMuted),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: isTv
+                      ? 'Episode notes (e.g. S01E03)...'
+                      : (isMovie ? 'Movie watch notes...' : 'Notes for this session...'),
+                  hintStyle: const TextStyle(color: AppColors.textMuted),
+                  border: const OutlineInputBorder(),
                 ),
                 style: const TextStyle(color: Colors.white),
               ),
@@ -108,7 +145,11 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                 setState(() {
                   _entry.timeSpentMinutes += minutes;
                   _entry.lastActivity = DateTime.now();
+                  if (_entry.status == LibraryStatus.backlog || _entry.status == LibraryStatus.wishlist) {
+                    _entry.status = LibraryStatus.playing;
+                  }
                 });
+                db.addOrUpdateEntry(_entry);
                 Navigator.pop(ctx);
               },
               child: const Text('Log Session', style: TextStyle(color: Colors.white)),
@@ -350,15 +391,46 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: _showAddSessionDialog,
-                icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                label: const Text('Log Session', style: TextStyle(color: Colors.white, fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  visualDensity: VisualDensity.compact,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isGame) ...[
+                    OutlinedButton(
+                      onPressed: () {
+                        final isTv = _entry.mediaItem.mediaType == MediaType.tvShow;
+                        final duration = (_entry.mediaItem.runtimeMinutes != null && _entry.mediaItem.runtimeMinutes! > 0)
+                            ? _entry.mediaItem.runtimeMinutes!
+                            : (isTv ? 45 : 120);
+                        _quickLogCinemaSession(
+                          duration: duration,
+                          note: isTv ? '+1 Episode' : 'Full Movie',
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryLight,
+                        side: const BorderSide(color: AppColors.primaryLight),
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      child: Text(
+                        _entry.mediaItem.mediaType == MediaType.tvShow ? '+1 Ep' : '+ Watched',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  ElevatedButton.icon(
+                    onPressed: _showAddSessionDialog,
+                    icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                    label: const Text('Log Session', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/library_entry.dart';
 import '../models/media_item.dart';
 import '../models/media_type.dart';
+import '../services/cinema_service.dart';
 import '../services/database_service.dart';
 import '../services/igdb_service.dart';
 import '../theme/app_colors.dart';
@@ -20,17 +21,76 @@ class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
   final db = DatabaseService();
   final igdb = IgdbService();
+  final cinema = CinemaService();
+
+  late bool _isGameMode;
+  MediaType? _cinemaFilter; // null for All, or MediaType.movie, or MediaType.tvShow
 
   String _query = '';
   bool _isSearching = false;
   Timer? _debounce;
   List<MediaItem> _searchResults = [];
+  List<MediaItem> _trendingCinema = [];
+  bool _isLoadingTrending = false;
+
+  final List<String> _gameGenres = [
+    'RPG',
+    'Roguelike',
+    'Action',
+    'Indie',
+    'Souls-like',
+    'Deckbuilder',
+    'Open World',
+    'Horror',
+    'Platformer',
+    'Strategy',
+  ];
+
+  final List<String> _cinemaGenres = [
+    'Sci-Fi',
+    'Drama',
+    'Action',
+    'Comedy',
+    'Horror',
+    'Animation',
+    'Thriller',
+    'Documentary',
+    'Crime',
+    'Mystery',
+    'Adventure',
+    'Fantasy',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _isGameMode = db.activeMediaFilter == MediaType.game;
+    if (!_isGameMode) {
+      _loadTrendingCinema();
+    }
+  }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTrendingCinema() async {
+    if (_trendingCinema.isNotEmpty) return;
+    setState(() => _isLoadingTrending = true);
+    try {
+      final trending = await cinema.getTrendingCinema();
+      if (mounted) {
+        setState(() {
+          _trendingCinema = trending;
+          _isLoadingTrending = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingTrending = false);
+    }
   }
 
   void _onSearchChanged(String query) {
@@ -47,43 +107,155 @@ class _SearchScreenState extends State<SearchScreen> {
 
     setState(() => _isSearching = true);
 
-    _debounce = Timer(const Duration(milliseconds: 400), () async {
-      // Live search from IGDB for games
-      final liveGames = await igdb.searchGames(query, limit: 20);
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      List<MediaItem> results;
+      if (_isGameMode) {
+        results = await igdb.searchGames(query, limit: 20);
+      } else {
+        results = await cinema.searchCinema(
+          query,
+          typeFilter: _cinemaFilter,
+          limit: 20,
+        );
+      }
 
       if (mounted) {
         setState(() {
-          _searchResults = liveGames;
+          _searchResults = results;
           _isSearching = false;
         });
       }
     });
   }
 
+  void _switchMode(bool gameMode) {
+    if (_isGameMode == gameMode) return;
+    setState(() {
+      _isGameMode = gameMode;
+      _searchResults = [];
+      _searchController.clear();
+      _query = '';
+      _isSearching = false;
+    });
+
+    db.setMediaFilter(gameMode ? MediaType.game : MediaType.movie);
+
+    if (!gameMode && _trendingCinema.isEmpty) {
+      _loadTrendingCinema();
+    }
+  }
+
+  void _setCinemaFilter(MediaType? filter) {
+    setState(() => _cinemaFilter = filter);
+    if (_query.trim().isNotEmpty) {
+      _onSearchChanged(_query);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final libraryItems = db.currentLibraryFiltered.map((e) => e.mediaItem).toList();
     final isQueryEmpty = _query.trim().isEmpty;
-    final displayItems = isQueryEmpty ? libraryItems : _searchResults;
 
-    final genres = [
-      'RPG',
-      'Roguelike',
-      'Action',
-      'Indie',
-      'Souls-like',
-      'Deckbuilder',
-      'Open World',
-      'Horror',
-      'Platformer',
-      'Strategy',
-    ];
+    List<MediaItem> displayItems;
+    if (isQueryEmpty) {
+      if (_isGameMode) {
+        displayItems = libraryItems;
+      } else {
+        // In Cinema mode, show trending cinema or library items
+        var list = _trendingCinema;
+        if (_cinemaFilter != null) {
+          list = list.where((item) => item.mediaType == _cinemaFilter).toList();
+        }
+        displayItems = list.isNotEmpty ? list : libraryItems;
+      }
+    } else {
+      displayItems = _searchResults;
+      if (!_isGameMode && _cinemaFilter != null) {
+        displayItems = displayItems.where((item) => item.mediaType == _cinemaFilter).toList();
+      }
+    }
+
+    final currentGenres = _isGameMode ? _gameGenres : _cinemaGenres;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Discover & Search'),
+        title: Text(_isGameMode ? 'Discover Games' : 'Discover Cinema'),
+        actions: [
+          // Mode Toggle Pill
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.borderSubtle),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () => _switchMode(true),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _isGameMode ? AppColors.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.sports_esports_rounded,
+                          size: 13,
+                          color: _isGameMode ? Colors.white : AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Games',
+                          style: TextStyle(
+                            color: _isGameMode ? Colors.white : AppColors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: _isGameMode ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _switchMode(false),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: !_isGameMode ? AppColors.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.movie_filter_rounded,
+                          size: 13,
+                          color: !_isGameMode ? Colors.white : AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Cinema',
+                          style: TextStyle(
+                            color: !_isGameMode ? Colors.white : AppColors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: !_isGameMode ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,8 +274,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: const TextStyle(color: Colors.white),
                 onChanged: _onSearchChanged,
                 decoration: InputDecoration(
-                  hintText: 'Search any game via IGDB (e.g. Elden Ring, Balatro)...',
-                  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                  hintText: _isGameMode
+                      ? 'Search any game via IGDB (e.g. Elden Ring, Balatro)...'
+                      : 'Search movies & TV shows (e.g. Dune, Severance)...',
+                  hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                   prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
                   suffixIcon: _query.isNotEmpty
                       ? IconButton(
@@ -121,23 +295,41 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
 
+          // Cinema Sub-Filter Pills (All, Movies, TV Series)
+          if (!_isGameMode) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+              child: Row(
+                children: [
+                  _buildSubFilterChip('All', null),
+                  const SizedBox(width: 8),
+                  _buildSubFilterChip('Movies', MediaType.movie),
+                  const SizedBox(width: 8),
+                  _buildSubFilterChip('TV Series', MediaType.tvShow),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+          ],
+
           // Genre discovery chips
           SizedBox(
-            height: 40,
+            height: 36,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: genres.length,
+              itemCount: currentGenres.length,
               itemBuilder: (context, index) {
-                final genre = genres[index];
+                final genre = currentGenres[index];
                 return Padding(
                   padding: const EdgeInsets.only(right: 8.0),
                   child: ActionChip(
                     label: Text(genre),
-                    labelStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    labelStyle: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                     backgroundColor: AppColors.surfaceElevated,
                     side: const BorderSide(color: AppColors.borderSubtle),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     onPressed: () {
                       _searchController.text = genre;
                       _onSearchChanged(genre);
@@ -150,20 +342,18 @@ class _SearchScreenState extends State<SearchScreen> {
 
           // Results count & Loading Indicator
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             child: Row(
               children: [
                 Text(
-                  isQueryEmpty
-                      ? (libraryItems.isNotEmpty ? 'In Your Library (${libraryItems.length})' : 'Explore & Search Games')
-                      : (_isSearching ? 'Searching IGDB Live...' : 'Results (${displayItems.length})'),
+                  _buildResultsHeader(isQueryEmpty, displayItems.length, libraryItems.length),
                   style: const TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (_isSearching) ...[
+                if (_isSearching || (_isLoadingTrending && isQueryEmpty && !_isGameMode)) ...[
                   const SizedBox(width: 10),
                   const SizedBox(
                     width: 12,
@@ -177,15 +367,23 @@ class _SearchScreenState extends State<SearchScreen> {
 
           // Search Results List
           Expanded(
-            child: displayItems.isEmpty && !_isSearching
+            child: displayItems.isEmpty && !_isSearching && !_isLoadingTrending
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.search_off_rounded, size: 56, color: AppColors.textMuted),
+                        Icon(
+                          isQueryEmpty
+                              ? (_isGameMode ? Icons.sports_esports_outlined : Icons.movie_creation_outlined)
+                              : Icons.search_off_rounded,
+                          size: 56,
+                          color: AppColors.textMuted,
+                        ),
                         const SizedBox(height: 12),
                         Text(
-                          'No results found for "$_query"',
+                          isQueryEmpty
+                              ? (_isGameMode ? 'Explore & Search IGDB Games' : 'Explore Trending Films & Series')
+                              : 'No results found for "$_query"',
                           style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
                         ),
                       ],
@@ -210,29 +408,25 @@ class _SearchScreenState extends State<SearchScreen> {
                           children: [
                             // Poster
                             GestureDetector(
-                              onTap: () {
-                                final entry = db.library.firstWhere(
-                                  (e) => e.mediaId == item.id,
-                                  orElse: () => LibraryEntry(
-                                    id: 'entry_${item.id}',
-                                    mediaId: item.id,
-                                    mediaItem: item,
-                                    status: LibraryStatus.wishlist,
-                                  ),
-                                );
-                                widget.onOpenDetail(entry);
-                              },
+                              onTap: () => _openOrViewDetail(item),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
                                 child: SizedBox(
-                                  width: 52,
-                                  height: 74,
+                                  width: 54,
+                                  height: 78,
                                   child: Image.network(
                                     item.posterUrl,
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) => Container(
                                       color: AppColors.surfaceElevated,
-                                      child: const Icon(Icons.videogame_asset, color: AppColors.textMuted),
+                                      child: Icon(
+                                        item.mediaType == MediaType.game
+                                            ? Icons.videogame_asset
+                                            : (item.mediaType == MediaType.tvShow
+                                                ? Icons.tv_rounded
+                                                : Icons.movie_outlined),
+                                        color: AppColors.textMuted,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -243,18 +437,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             // Info
                             Expanded(
                               child: GestureDetector(
-                                onTap: () {
-                                  final entry = db.library.firstWhere(
-                                    (e) => e.mediaId == item.id,
-                                    orElse: () => LibraryEntry(
-                                      id: 'entry_${item.id}',
-                                      mediaId: item.id,
-                                      mediaItem: item,
-                                      status: LibraryStatus.wishlist,
-                                    ),
-                                  );
-                                  widget.onOpenDetail(entry);
-                                },
+                                onTap: () => _openOrViewDetail(item),
                                 behavior: HitTestBehavior.opaque,
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,15 +452,18 @@ class _SearchScreenState extends State<SearchScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                    const SizedBox(height: 3),
+                                    const SizedBox(height: 4),
                                     Row(
                                       children: [
+                                        // Media Type Pill
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                                           decoration: BoxDecoration(
                                             color: item.mediaType == MediaType.game
                                                 ? AppColors.primaryDark.withValues(alpha: 0.4)
-                                                : AppColors.accentOrange.withValues(alpha: 0.2),
+                                                : (item.mediaType == MediaType.tvShow
+                                                    ? Colors.purple.withValues(alpha: 0.25)
+                                                    : AppColors.accentOrange.withValues(alpha: 0.2)),
                                             borderRadius: BorderRadius.circular(4),
                                           ),
                                           child: Text(
@@ -285,7 +471,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                             style: TextStyle(
                                               color: item.mediaType == MediaType.game
                                                   ? AppColors.primaryLight
-                                                  : AppColors.accentOrange,
+                                                  : (item.mediaType == MediaType.tvShow
+                                                      ? Colors.purpleAccent
+                                                      : AppColors.accentOrange),
                                               fontSize: 10,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -299,11 +487,22 @@ class _SearchScreenState extends State<SearchScreen> {
                                             fontSize: 11,
                                           ),
                                         ),
+                                        if (item.runtimeMinutes != null && item.runtimeMinutes! > 0) ...[
+                                          Text(
+                                            item.mediaType == MediaType.tvShow
+                                                ? '  •  ${item.runtimeMinutes}m/ep'
+                                                : '  •  ${item.runtimeMinutes}m',
+                                            style: const TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 11,
+                                            ),
+                                          ),
+                                        ],
                                       ],
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      item.creator,
+                                      item.creator.isNotEmpty ? item.creator : item.genres.take(2).join(', '),
                                       style: const TextStyle(
                                         color: AppColors.textMuted,
                                         fontSize: 11,
@@ -316,10 +515,11 @@ class _SearchScreenState extends State<SearchScreen> {
                               ),
                             ),
 
-                            // Action Button (Add to Backlog or Open)
+                            // Action Button (Add to Library or View Checkmark)
                             if (inLibrary)
                               IconButton(
                                 icon: const Icon(Icons.check_circle_rounded, color: AppColors.primaryLight),
+                                tooltip: 'In Library',
                                 onPressed: () {
                                   final entry = db.library.firstWhere((e) => e.mediaId == item.id);
                                   widget.onOpenDetail(entry);
@@ -328,18 +528,29 @@ class _SearchScreenState extends State<SearchScreen> {
                             else
                               IconButton(
                                 icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
+                                tooltip: _isGameMode ? 'Add to Backlog' : 'Add to Watchlist',
                                 onPressed: () {
                                   final newEntry = LibraryEntry(
                                     id: 'entry_${item.id}',
                                     mediaId: item.id,
                                     mediaItem: item,
                                     status: LibraryStatus.backlog,
+                                    platform: item.mediaType == MediaType.game
+                                        ? 'PC - Steam'
+                                        : 'Streaming',
+                                    format: item.mediaType == MediaType.game
+                                        ? 'Digital'
+                                        : 'Streaming',
                                   );
                                   db.addOrUpdateEntry(newEntry);
                                   setState(() {});
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Added "${item.title}" to Backlog'),
+                                      content: Text(
+                                        item.mediaType == MediaType.game
+                                            ? 'Added "${item.title}" to Backlog'
+                                            : 'Added "${item.title}" to Watchlist',
+                                      ),
                                       duration: const Duration(seconds: 2),
                                       backgroundColor: AppColors.primary,
                                     ),
@@ -355,5 +566,61 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildSubFilterChip(String label, MediaType? filter) {
+    final isSelected = _cinemaFilter == filter;
+    return GestureDetector(
+      onTap: () => _setCinemaFilter(filter),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.borderSubtle,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _buildResultsHeader(bool isQueryEmpty, int displayCount, int libraryCount) {
+    if (isQueryEmpty) {
+      if (_isGameMode) {
+        return libraryCount > 0 ? 'In Your Library ($libraryCount)' : 'Explore Games';
+      } else {
+        return _trendingCinema.isNotEmpty ? 'Trending Films & Series ($displayCount)' : 'Trending Cinema';
+      }
+    }
+
+    if (_isSearching) {
+      return _isGameMode ? 'Searching IGDB Live...' : 'Searching TMDB & TVMaze...';
+    }
+
+    return 'Results ($displayCount)';
+  }
+
+  void _openOrViewDetail(MediaItem item) {
+    final entry = db.library.firstWhere(
+      (e) => e.mediaId == item.id,
+      orElse: () => LibraryEntry(
+        id: 'entry_${item.id}',
+        mediaId: item.id,
+        mediaItem: item,
+        status: LibraryStatus.wishlist,
+        platform: item.mediaType == MediaType.game ? 'PC - Steam' : 'Streaming',
+        format: item.mediaType == MediaType.game ? 'Digital' : 'Streaming',
+      ),
+    );
+    widget.onOpenDetail(entry);
   }
 }

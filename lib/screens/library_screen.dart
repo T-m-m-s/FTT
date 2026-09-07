@@ -5,6 +5,7 @@ import '../services/database_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/shelf_view.dart';
 import 'steam_sync_screen.dart';
+import 'search_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
   final Function(LibraryEntry) onOpenDetail;
@@ -147,6 +148,25 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               context,
                               MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
                             ),
+                          )
+                        else
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.search_rounded, size: 18),
+                            label: const Text('Discover Films & Shows'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SearchScreen(onOpenDetail: widget.onOpenDetail),
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -216,7 +236,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Container(
                                 color: AppColors.surfaceElevated,
-                                child: const Icon(Icons.sports_esports_outlined, color: AppColors.textMuted),
+                                child: Icon(
+                                  isGame ? Icons.sports_esports_outlined : Icons.movie_outlined,
+                                  color: AppColors.textMuted,
+                                ),
                               ),
                             ),
                           ),

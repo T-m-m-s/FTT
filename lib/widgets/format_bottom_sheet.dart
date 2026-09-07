@@ -33,21 +33,31 @@ class _FormatBottomSheetState extends State<FormatBottomSheet> {
   ];
 
   final List<String> cinemaPlatforms = [
-    '4K UHD Blu-ray',
     'Netflix',
     'Apple TV+',
     'Prime Video',
     'Disney+',
-    'Cinema',
+    'Max',
+    'Cinema / Theater',
+    '4K UHD Blu-ray',
   ];
 
-  final List<String> formats = [
+  final List<String> gameFormats = [
     'Steam',
     'GOG',
     'Epic Games',
     'Digital',
     'Physical',
     'Subscription',
+  ];
+
+  final List<String> cinemaFormats = [
+    'Streaming',
+    'Digital Purchase',
+    'Rental',
+    'Theater Ticket',
+    '4K Blu-ray',
+    'Physical Disc',
   ];
 
   @override
@@ -72,6 +82,7 @@ class _FormatBottomSheetState extends State<FormatBottomSheet> {
   Widget build(BuildContext context) {
     final isGame = widget.entry.mediaItem.mediaType.name == 'game';
     final platformList = isGame ? gamePlatforms : cinemaPlatforms;
+    final formatList = isGame ? gameFormats : cinemaFormats;
 
     return Container(
       decoration: const BoxDecoration(
@@ -186,7 +197,7 @@ class _FormatBottomSheetState extends State<FormatBottomSheet> {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: formats.map((fmt) {
+              children: formatList.map((fmt) {
                 final isSelected = _format == fmt;
                 return ChoiceChip(
                   label: Text(fmt),

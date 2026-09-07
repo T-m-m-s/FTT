@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../widgets/hero_banner.dart';
 import '../widgets/playing_now_card.dart';
 import 'steam_sync_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final Function(LibraryEntry) onOpenDetail;
@@ -53,7 +54,7 @@ class HomeScreen extends StatelessWidget {
                   else
                     _buildWelcomeBanner(context, isGame),
 
-                  // Top Action Bar (Mode Switcher Pill + Steam Sync)
+                  // Top Action Bar (Mode Switcher Pill + Steam Sync / Cinema Discover)
                   Positioned(
                     top: MediaQuery.of(context).padding.top + 8,
                     left: 16,
@@ -67,45 +68,85 @@ class HomeScreen extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Steam Sync Button
-                            GestureDetector(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1B2838).withValues(alpha: 0.85),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: db.steamProfile != null
-                                        ? AppColors.statusCompleted.withValues(alpha: 0.6)
-                                        : Colors.white.withValues(alpha: 0.2),
+                            if (isGame) ...[
+                              // Steam Sync Button (Gaming mode)
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1B2838).withValues(alpha: 0.85),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: db.steamProfile != null
+                                          ? AppColors.statusCompleted.withValues(alpha: 0.6)
+                                          : Colors.white.withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.cloud_sync_rounded,
+                                        size: 16,
+                                        color: db.steamProfile != null
+                                            ? AppColors.statusCompleted
+                                            : Colors.white,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        db.steamProfile != null ? 'Steam Connected' : 'Steam Sync',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.cloud_sync_rounded,
-                                      size: 16,
-                                      color: db.steamProfile != null
-                                          ? AppColors.statusCompleted
-                                          : Colors.white,
+                              ),
+                            ] else ...[
+                              // Add Film / Series Button (Cinema mode)
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => SearchScreen(onOpenDetail: onOpenDetail),
+                                  ),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceElevated.withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: AppColors.primary.withValues(alpha: 0.6),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      db.steamProfile != null ? 'Steam Connected' : 'Steam Sync',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
+                                  ),
+                                  child: const Row(
+                                    children: [
+                                      Icon(
+                                        Icons.movie_creation_outlined,
+                                        size: 15,
+                                        color: AppColors.primaryLight,
                                       ),
-                                    ),
-                                  ],
+                                      SizedBox(width: 5),
+                                      Text(
+                                        'Add Film/Show',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                             const SizedBox(width: 8),
                             // Check for Updates Button
                             GestureDetector(
@@ -141,7 +182,7 @@ class HomeScreen extends StatelessWidget {
             // If library is completely empty, show friendly getting started card
             if (currentLibrary.isEmpty)
               SliverToBoxAdapter(
-                child: _buildEmptyOnboardingCard(context),
+                child: _buildEmptyOnboardingCard(context, isGame),
               ),
 
             // "Playing Now" / "Watching Now" Section
@@ -182,6 +223,12 @@ class HomeScreen extends StatelessWidget {
                         entry: entry,
                         onTap: () => onOpenDetail(entry),
                         onLogSession: () {
+                          final isTv = entry.mediaItem.mediaType == MediaType.tvShow;
+                          final isMovie = entry.mediaItem.mediaType == MediaType.movie;
+                          final movieRuntime = entry.mediaItem.runtimeMinutes;
+                          final int logDuration = (isMovie && movieRuntime != null && movieRuntime > 0)
+                              ? movieRuntime
+                              : 45;
                           final session = PlaySession(
                             id: 'sess_${DateTime.now().millisecondsSinceEpoch}',
                             mediaId: entry.mediaId,
@@ -189,14 +236,22 @@ class HomeScreen extends StatelessWidget {
                             mediaPoster: entry.mediaItem.posterUrl,
                             mediaType: entry.mediaItem.mediaType,
                             date: DateTime.now(),
-                            durationMinutes: 45,
+                            durationMinutes: logDuration,
                             platform: entry.platform,
-                            notes: 'Quick session logged from Home',
+                            notes: isTv
+                                ? 'Episode logged from Home'
+                                : (isMovie ? 'Movie watch session logged from Home' : 'Quick session logged from Home'),
                           );
                           db.addSession(session);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Logged 45 min for ${entry.mediaItem.title}'),
+                              content: Text(
+                                isTv
+                                    ? 'Logged episode for ${entry.mediaItem.title} (${logDuration}m)'
+                                    : (isMovie
+                                        ? 'Logged watch for ${entry.mediaItem.title} (${logDuration}m)'
+                                        : 'Logged $logDuration min for ${entry.mediaItem.title}'),
+                              ),
                               duration: const Duration(seconds: 2),
                               backgroundColor: AppColors.primary,
                             ),
@@ -258,7 +313,10 @@ class HomeScreen extends StatelessWidget {
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Container(
                                 color: AppColors.surfaceElevated,
-                                child: const Icon(Icons.sports_esports_outlined, color: AppColors.textMuted),
+                                child: Icon(
+                                  isGame ? Icons.sports_esports_outlined : Icons.movie_outlined,
+                                  color: AppColors.textMuted,
+                                ),
                               ),
                             ),
                           ),
@@ -270,7 +328,7 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
 
-            // "Most Played Games" Section (Real User Games)
+            // "Most Played Games" / "Most Watched Cinema" Section (Real User Data)
             if (topPlayed.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: Padding(
@@ -278,22 +336,22 @@ class HomeScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
+                      Row(
                         children: [
                           Text(
-                            'Most Played Games',
-                            style: TextStyle(
+                            isGame ? 'Most Played Games' : 'Most Watched Cinema',
+                            style: const TextStyle(
                               color: AppColors.textPrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.3,
                             ),
                           ),
-                          Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                          const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
                         ],
                       ),
                       Text(
-                        '${topPlayed.length} games',
+                        '${topPlayed.length} ${isGame ? 'games' : 'titles'}',
                         style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                       ),
                     ],
@@ -328,7 +386,10 @@ class HomeScreen extends StatelessWidget {
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) => Container(
                                       color: AppColors.surfaceElevated,
-                                      child: const Icon(Icons.broken_image, color: AppColors.textMuted),
+                                      child: Icon(
+                                        isGame ? Icons.broken_image : Icons.movie_outlined,
+                                        color: AppColors.textMuted,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -345,7 +406,7 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '${hours}h played',
+                                isGame ? '${hours}h played' : '${hours}h watched',
                                 style: const TextStyle(
                                   color: AppColors.primaryLight,
                                   fontSize: 10,
@@ -420,17 +481,19 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Your personal gaming library, timeline, and analytics.',
+          Text(
+            isGame
+                ? 'Your personal gaming library, timeline, and analytics.'
+                : 'Your personal movie and TV series library, timeline, and analytics.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyOnboardingCard(BuildContext context) {
+  Widget _buildEmptyOnboardingCard(BuildContext context, bool isGame) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       padding: const EdgeInsets.all(22),
@@ -441,36 +504,62 @@ class HomeScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.cloud_sync_rounded, color: AppColors.primaryLight, size: 36),
+          Icon(
+            isGame ? Icons.cloud_sync_rounded : Icons.movie_creation_outlined,
+            color: AppColors.primaryLight,
+            size: 36,
+          ),
           const SizedBox(height: 12),
-          const Text(
-            'Connect Your Steam Library',
-            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+          Text(
+            isGame ? 'Connect Your Steam Library' : 'Start Your Cinema Collection',
+            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Automatically sync all your Steam games, playtime hours, and last-played history without any manual entry.',
+          Text(
+            isGame
+                ? 'Automatically sync all your Steam games, playtime hours, and last-played history without any manual entry.'
+                : 'Discover movies and TV series, track your watchlists, and log watch sessions and episodes effortlessly.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.cloud_sync_rounded, size: 18),
-            label: const Text('Connect Steam Profile'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1B2838),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: AppColors.primary),
+          if (isGame)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.cloud_sync_rounded, size: 18),
+              label: const Text('Connect Steam Profile'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1B2838),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
+              ),
+            )
+          else
+            ElevatedButton.icon(
+              icon: const Icon(Icons.search_rounded, size: 18),
+              label: const Text('Discover Films & Shows'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SearchScreen(onOpenDetail: onOpenDetail),
+                ),
               ),
             ),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
-            ),
-          ),
         ],
       ),
     );
