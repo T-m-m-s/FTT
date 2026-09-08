@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Sfondo Solido 1: Scuro Grafite -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#0C1017" />
+
+  <!-- Elemento Unico Solido: Viola #6C5CE7 -->
+  <!-- Un disco (R=120) a coordinate (230, 256) fuso con una punta Play a (370, 256) -->
+  <path d="M 230 126
+           A 130 130 0 0 0 115 320
+           L 115 320
+           A 130 130 0 0 0 320 320
+           L 385 275
+           C 400 265, 400 247, 385 237
+           L 320 192
+           A 130 130 0 0 0 230 126 Z"
+        fill="#6C5CE7" />
+
+  <!-- Intaglio Negativo (Colore Sfondo): Foro centrale come un orologio/disco -->
+  <circle cx="230" cy="256" r="56" fill="#0C1017" />
+  <!-- Piccolo accento solido al centro: l'asse/perno -->
+  <circle cx="230" cy="256" r="22" fill="#38BDF8" />
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#0E121B" />
+  <!-- Silhouette controller/visore simmetrica e pulita -->
+  <path d="M 160 176
+           L 352 176
+           A 56 56 0 0 1 408 232
+           L 408 280
+           A 56 56 0 0 1 352 336
+           L 320 336
+           A 72 72 0 0 0 192 336
+           L 160 336
+           A 56 56 0 0 1 104 280
+           L 104 232
+           A 56 56 0 0 1 160 176 Z"
+        fill="#6C5CE7" />
+  <!-- Triangolo Play centrale equilatero ritagliato nello sfondo -->
+  <polygon points="236,220 292,256 236,292" fill="#0E121B" />
+</svg>

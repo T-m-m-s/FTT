@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#0E121B" />
+  <!-- Stella a 4 punte concava perfetta (R=150 da centro 256,256) -->
+  <path d="M 256 106
+           A 150 150 0 0 0 406 256
+           A 150 150 0 0 0 256 406
+           A 150 150 0 0 0 106 256
+           A 150 150 0 0 0 256 106 Z"
+        fill="#38BDF8" />
+  <!-- Foro centrale geometrico: piccolo cerchio nero dello sfondo -->
+  <circle cx="256" cy="256" r="28" fill="#0E121B" />
+</svg>

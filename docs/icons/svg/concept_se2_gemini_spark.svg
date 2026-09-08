@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Sfondo Solido Scuro -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#0C1017" />
+
+  <!-- Elemento Unico Solido: Ciano Elettrico #38BDF8 -->
+  <!-- Stella a 4 punte concave: Alto (256, 120), Basso (256, 392), Sinistra (150, 256), Destra (390, 256) -->
+  <path d="M 240 115
+           C 240 190, 195 240, 140 240
+           C 195 240, 240 290, 240 397
+           C 240 290, 310 240, 400 240
+           C 310 240, 240 190, 240 115 Z"
+        fill="#38BDF8" />
+
+  <!-- Intaglio centrale negativo: un piccolo rombo/diamante dello stesso colore dello sfondo -->
+  <polygon points="255,230 275,240 255,250 235,240" fill="#0C1017" />
+</svg>

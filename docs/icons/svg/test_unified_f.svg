@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="116" fill="#0B0E14" />
+  
+  <g transform="translate(256, 256)">
+    <!-- F Monolitica: Un solo percorso pulito -->
+    <path d="M -110 -130
+             L 90 -130
+             C 105 -130, 115 -118, 110 -105
+             L 95 -80
+             C 90 -72, 80 -68, 70 -68
+             L -45 -68
+             L -45 -22
+             L 50 -22
+             C 65 -22, 75 -10, 70 3
+             L 55 28
+             C 50 36, 40 40, 30 40
+             L -45 40
+             L -45 110
+             C -45 125, -60 135, -75 130
+             C -95 125, -110 105, -110 85
+             Z"
+          fill="#6C5CE7" />
+
+    <!-- Accento geometrico solido: un punto/nodo ciano -->
+    <circle cx="85" cy="95" r="22" fill="#38BDF8" />
+  </g>
+</svg>

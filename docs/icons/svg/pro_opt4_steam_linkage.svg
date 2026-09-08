@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="116" fill="#0B0E14" />
+
+  <g transform="translate(256, 256)">
+    <!-- Corpo Meccanico Unico (Viola #6C5CE7) -->
+    <!-- Centro grande a (-45, 0), Centro piccolo a (105, 0) -->
+    <path d="M -45 -105
+             A 105 105 0 0 0 -45 105
+             L 105 52
+             A 52 52 0 0 0 105 -52
+             L -45 -105 Z"
+          fill="#6C5CE7" />
+
+    <!-- Foro Principale Negativo (Il Quadrante/Tempo) -->
+    <circle cx="-45" cy="0" r="54" fill="#0B0E14" />
+
+    <!-- Foro Secondario Negativo (Il Perno) -->
+    <circle cx="105" cy="0" r="24" fill="#0B0E14" />
+
+    <!-- Accento Ciano nel foro secondario: come un indicatore o gemma -->
+    <circle cx="105" cy="0" r="12" fill="#38BDF8" />
+  </g>
+</svg>

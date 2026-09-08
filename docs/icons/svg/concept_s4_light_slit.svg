@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgD" cx="50%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#141722" />
+      <stop offset="60%" stop-color="#0B0E15" />
+      <stop offset="100%" stop-color="#06070B" />
+    </radialGradient>
+
+    <!-- Gradiente della fessura di luce (Viola intenso a Ciano puro) -->
+    <linearGradient id="slitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="45%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    <filter id="slitDepth" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000000" flood-opacity="0.7" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Canvas Monolitico -->
+  <rect x="16" y="16" width="480" height="480" rx="112" ry="112" fill="url(#bgD)" stroke="#1D2332" stroke-width="2" />
+
+  <g transform="translate(256, 256)">
+    <!-- Scanalatura scura in bassorilievo (ombra interna della fessura) -->
+    <path d="M -50 -90
+             L 65 0
+             L -50 90"
+          fill="none"
+          stroke="#05070A"
+          stroke-width="38"
+          stroke-linecap="round"
+          stroke-linejoin="round" />
+
+    <!-- La lama di luce viva all'interno del taglio -->
+    <path d="M -50 -90
+             L 65 0
+             L -50 90"
+          fill="none"
+          stroke="url(#slitGrad)"
+          stroke-width="22"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          filter="url(#slitDepth)" />
+
+    <!-- Filo di luce bianca al centro del vertice -->
+    <circle cx="65" cy="0" r="5" fill="#FFFFFF" opacity="0.9" />
+
+    <!-- Punto di ancoraggio/origine sulla sinistra (richiama il tracking / l'inizio del percorso) -->
+    <circle cx="-100" cy="0" r="11" fill="#38BDF8" opacity="0.85" />
+    <circle cx="-100" cy="0" r="4" fill="#FFFFFF" />
+  </g>
+</svg>

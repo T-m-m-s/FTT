@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="116" fill="#0B0E14" />
+  
+  <g transform="translate(256, 256)">
+    <!-- Triangolo Sinistro: cuspide a destra verso il centro -->
+    <path d="M -130 -110
+             C -130 -125, -112 -135, -98 -126
+             L 0 -50
+             C 12 -42, 12 -24, 0 -16
+             L -98 60
+             C -112 69, -130 59, -130 44
+             Z"
+          fill="#6C5CE7"
+          transform="translate(-16, 0)" />
+
+    <!-- Triangolo Destro: play puro slanciato in avanti -->
+    <path d="M 0 -85
+             C 0 -100, 18 -109, 31 -101
+             L 135 -38
+             C 148 -30, 148 -10, 135 -2
+             L 31 61
+             C 18 69, 0 60, 0 45
+             Z"
+          fill="#38BDF8"
+          transform="translate(16, 0)" />
+  </g>
+</svg>

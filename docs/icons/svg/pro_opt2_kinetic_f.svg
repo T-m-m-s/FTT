@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="116" fill="#0B0E14" />
+
+  <g transform="translate(256, 256)">
+    <!-- Pilastro Verticale di Sinistra (Spina dorsale dell'F) -->
+    <rect x="-115" y="-120" width="52" height="240" rx="26" fill="#6C5CE7" />
+
+    <!-- Braccio Superiore (Lungo, slanciato a 45°) -->
+    <path d="M -45 -120
+             L 95 -120
+             C 112 -120, 124 -105, 117 -89
+             L 95 -68
+             C 90 -61, 82 -56, 73 -56
+             L -45 -56
+             C -55 -56, -63 -64, -63 -74
+             L -63 -102
+             C -63 -112, -55 -120, -45 -120 Z"
+          fill="#6C5CE7" />
+
+    <!-- Braccio Centrale (Intermedio, slanciato a 45°) -->
+    <path d="M -45 -18
+             L 45 -18
+             C 62 -18, 74 -3, 67 13
+             L 45 34
+             C 40 41, 32 46, 23 46
+             L -45 46
+             C -55 46, -63 38, -63 28
+             L -63 0
+             C -63 -10, -55 -18, -45 -18 Z"
+          fill="#6C5CE7" />
+
+    <!-- Accento geometrico solido: puntatore Play in ciano -->
+    <circle cx="85" cy="100" r="16" fill="#38BDF8" />
+  </g>
+</svg>

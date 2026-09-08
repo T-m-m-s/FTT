@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgA" cx="50%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#141824" />
+      <stop offset="60%" stop-color="#0D1017" />
+      <stop offset="100%" stop-color="#07080D" />
+    </radialGradient>
+
+    <!-- Lamina Superiore (Viola Ametista) -->
+    <linearGradient id="beamPurple" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C5CFC" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#4F36E2" stop-opacity="0.75" />
+    </linearGradient>
+
+    <!-- Lamina Inferiore (Ciano Ghiaccio) -->
+    <linearGradient id="beamCyan" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#0284C7" stop-opacity="0.75" />
+    </linearGradient>
+
+    <!-- Prisma d'Intersezione Luminoso -->
+    <linearGradient id="prismGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#8B5CF6" />
+      <stop offset="50%" stop-color="#A78BFA" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    <filter id="softShadowA" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.55" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Canvas -->
+  <rect x="16" y="16" width="480" height="480" rx="112" ry="112" fill="url(#bgA)" stroke="#1F2637" stroke-width="2" />
+
+  <g transform="translate(256, 256)" filter="url(#softShadowA)">
+    <!-- Luce d'ambiente centrale molto tenue -->
+    <circle cx="10" cy="0" r="110" fill="#6366F1" opacity="0.06" />
+
+    <!-- Lamina 1 (Inclinata dall'alto a sinistra verso il centro-destra) -->
+    <path d="M -130 -110 
+             C -130 -110, -50 -130, 20 -70 
+             L 110 -10
+             C 125 0, 125 15, 110 25
+             L 0 -55
+             C -60 -95, -110 -85, -130 -110 Z"
+          fill="url(#beamPurple)" />
+
+    <!-- Lamina 2 (Inclinata dal basso a sinistra verso il centro-destra) -->
+    <path d="M -130 110 
+             C -130 110, -50 130, 20 70 
+             L 110 10
+             C 125 0, 125 -15, 110 -25
+             L 0 55
+             C -60 95, -110 85, -130 110 Z"
+          fill="url(#beamCyan)" />
+
+    <!-- Nucleo centrale a cuspide: dove i due fasci si fondono nel tasto di avvio -->
+    <path d="M -45 -60
+             L 65 0
+             L -45 60
+             C -55 50, -55 -50, -45 -60 Z"
+          fill="url(#prismGrad)"
+          opacity="0.95" />
+
+    <!-- Sottile linea di luce sul vertice di avanzamento -->
+    <line x1="-35" y1="-45" x2="60" y2="0" stroke="#FFFFFF" stroke-width="2.5" opacity="0.4" stroke-linecap="round" />
+  </g>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="#0E121B" />
+  <!-- Cerchio grande parziale con spicchio a freccia Play ritagliato -->
+  <!-- Oppure un anello puro con freccia Play -->
+  <circle cx="256" cy="256" r="120" fill="none" stroke="#6C5CE7" stroke-width="40" />
+  <!-- Freccia solida al centro che punta a destra -->
+  <polygon points="230,200 310,256 230,312" fill="#38BDF8" />
+</svg>

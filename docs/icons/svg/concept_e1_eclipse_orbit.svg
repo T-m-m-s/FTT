@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bg1" cx="50%" cy="35%" r="70%">
+      <stop offset="0%" stop-color="#181F2E" />
+      <stop offset="60%" stop-color="#0F131E" />
+      <stop offset="100%" stop-color="#080A10" />
+    </radialGradient>
+    
+    <!-- Outer Arc Gradient (Purple to Cyan) -->
+    <linearGradient id="arcGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5E43F3" />
+      <stop offset="50%" stop-color="#7B61FF" />
+      <stop offset="100%" stop-color="#4ECAFF" />
+    </linearGradient>
+
+    <!-- Inner Core Gradient -->
+    <linearGradient id="coreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#56CCF2" />
+      <stop offset="100%" stop-color="#6C5CE7" />
+    </linearGradient>
+    
+    <!-- Subtle glow filter -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect x="16" y="16" width="480" height="480" rx="112" ry="112" fill="url(#bg1)" stroke="#222B3D" stroke-width="2.5" />
+  
+  <!-- Subtle ambient inner back-glow -->
+  <circle cx="256" cy="256" r="140" fill="#6C5CE7" opacity="0.08" filter="url(#softGlow)" />
+
+  <!-- Outer Orbital Progress Arc (Radius 145, 270 degree sweep) -->
+  <!-- Arc from 135 deg to 45 deg clockwise -->
+  <path d="M 153.46 358.54
+           A 145 145 0 1 1 358.54 358.54"
+        fill="none"
+        stroke="url(#arcGrad)"
+        stroke-width="32"
+        stroke-linecap="round" />
+
+  <!-- Inner floating crescent / aperture core -->
+  <g transform="translate(256, 256)">
+    <!-- Satellite milestone pulse -->
+    <circle cx="0" cy="145" r="16" fill="#4ECAFF" />
+    <circle cx="0" cy="145" r="8" fill="#FFFFFF" />
+
+    <!-- Focal geometric core: an elegant offset sphere with an angled aperture facet -->
+    <circle cx="0" cy="0" r="76" fill="#131722" stroke="#252D3F" stroke-width="3" />
+    <!-- Dynamic forward chevron blade nested in center -->
+    <path d="M -24 -46 L 42 0 L -24 46 Z"
+          fill="url(#coreGrad)"
+          stroke="#4ECAFF"
+          stroke-width="2"
+          stroke-linejoin="round" />
+  </g>
+</svg>

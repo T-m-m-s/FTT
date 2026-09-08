@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="116" fill="#0B0E14" />
+
+  <g transform="translate(256, 256)">
+    <!-- Sagoma Solida del Controller (Viola #6C5CE7) -->
+    <!-- Curve continue pulite, niente bozze asimmetriche -->
+    <path d="M -150 -90
+             C -80 -105, 80 -105, 150 -90
+             C 175 -85, 190 -65, 185 -40
+             L 170 40
+             C 165 70, 140 95, 110 95
+             C 90 95, 70 80, 55 65
+             C 35 45, -35 45, -55 65
+             C -70 80, -90 95, -110 95
+             C -140 95, -165 70, -170 40
+             L -185 -40
+             C -190 -65, -175 -85, -150 -90 Z"
+          fill="#6C5CE7" />
+
+    <!-- Intaglio Negativo Centrale (Play Triangle perfetto nello stesso colore dello sfondo) -->
+    <path d="M -22 -44
+             C -22 -52, -13 -57, -6 -53
+             L 42 -22
+             C 49 -18, 49 -8, 42 -4
+             L -6 27
+             C -13 31, -22 26, -22 18
+             Z"
+          fill="#0B0E14" />
+  </g>
+</svg>

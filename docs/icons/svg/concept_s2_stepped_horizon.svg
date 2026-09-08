@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgB" cx="50%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#151926" />
+      <stop offset="60%" stop-color="#0E111A" />
+      <stop offset="100%" stop-color="#07080E" />
+    </radialGradient>
+
+    <!-- Barra 1: Viola Notte -->
+    <linearGradient id="bar1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7C5CFC" />
+      <stop offset="100%" stop-color="#6047EC" />
+    </linearGradient>
+
+    <!-- Barra 2: Transizione Indaco-Ciano (Vertice del Play) -->
+    <linearGradient id="bar2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6047EC" />
+      <stop offset="60%" stop-color="#4F75F8" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    <!-- Barra 3: Ciano Puro Compatto -->
+    <linearGradient id="bar3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0EA5E9" />
+    </linearGradient>
+
+    <filter id="softShadowB" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Canvas -->
+  <rect x="16" y="16" width="480" height="480" rx="112" ry="112" fill="url(#bgB)" stroke="#21283B" stroke-width="2" />
+
+  <g transform="translate(256, 256)" filter="url(#softShadowB)">
+    <!-- Barra Superiore (Y: -80, Altezza 44, da X=-120 a X=40) -->
+    <rect x="-125" y="-82" width="180" height="44" rx="22" ry="22" fill="url(#bar1)" />
+
+    <!-- Barra Centrale (Y: -22, Altezza 44, da X=-125 a X=115 -> sporge in avanti!) -->
+    <rect x="-125" y="-22" width="245" height="44" rx="22" ry="22" fill="url(#bar2)" />
+
+    <!-- Barra Inferiore (Y: +38, Altezza 44, da X=-125 a X=40 -> allineata con la superiore) -->
+    <rect x="-125" y="38" width="180" height="44" rx="22" ry="22" fill="url(#bar3)" />
+
+    <!-- Il tocco subtle: Le tre punte delle barre (40, 115, 40) disegnano un triangolo Play perfetto -->
+    <!-- Un accento circolare sul vertice di avanzamento -->
+    <circle cx="95" cy="0" r="7" fill="#FFFFFF" opacity="0.9" />
+  </g>
+</svg>
