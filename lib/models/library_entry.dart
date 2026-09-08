@@ -1,5 +1,6 @@
 import 'media_item.dart';
 import 'media_type.dart';
+import 'tv_season.dart';
 
 enum LibraryStatus {
   playing,
@@ -56,6 +57,9 @@ class LibraryEntry {
   String notes;
   DateTime? lastActivity;
   DateTime addedDate;
+  List<String> watchedEpisodeIds; // e.g. ["s1_e1", "s1_e2"]
+  int? totalEpisodesCount;
+  List<TvSeason>? cachedSeasons;
 
   LibraryEntry({
     required this.id,
@@ -74,7 +78,30 @@ class LibraryEntry {
     this.notes = '',
     this.lastActivity,
     DateTime? addedDate,
-  }) : addedDate = addedDate ?? DateTime.now();
+    List<String>? watchedEpisodeIds,
+    this.totalEpisodesCount,
+    this.cachedSeasons,
+  })  : addedDate = addedDate ?? DateTime.now(),
+        watchedEpisodeIds = watchedEpisodeIds ?? [];
+
+  bool isEpisodeWatched(int season, int episode) {
+    return watchedEpisodeIds.contains('s${season}_e$episode');
+  }
+
+  int get watchedEpisodesCount => watchedEpisodeIds.length;
+
+  /// Recalculates TV show progress percentage and status based on watched episodes
+  void updateTvProgress() {
+    if (mediaItem.mediaType == MediaType.tvShow && totalEpisodesCount != null && totalEpisodesCount! > 0) {
+      progressPercent = ((watchedEpisodeIds.length / totalEpisodesCount!) * 100.0).clamp(0.0, 100.0);
+      if (watchedEpisodeIds.length >= totalEpisodesCount!) {
+        status = LibraryStatus.completed;
+      } else if (watchedEpisodeIds.isNotEmpty &&
+          (status == LibraryStatus.backlog || status == LibraryStatus.wishlist)) {
+        status = LibraryStatus.playing;
+      }
+    }
+  }
 
   String get formattedTimeSpent {
     final hours = timeSpentMinutes ~/ 60;
@@ -102,6 +129,9 @@ class LibraryEntry {
       'notes': notes,
       'lastActivity': lastActivity?.toIso8601String(),
       'addedDate': addedDate.toIso8601String(),
+      'watchedEpisodeIds': watchedEpisodeIds,
+      'totalEpisodesCount': totalEpisodesCount,
+      'cachedSeasons': cachedSeasons?.map((s) => s.toMap()).toList(),
     };
   }
 
@@ -143,6 +173,14 @@ class LibraryEntry {
       addedDate: map['addedDate'] != null
           ? DateTime.tryParse(map['addedDate'] as String)
           : null,
+      watchedEpisodeIds: (map['watchedEpisodeIds'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      totalEpisodesCount: (map['totalEpisodesCount'] as num?)?.toInt(),
+      cachedSeasons: (map['cachedSeasons'] as List<dynamic>?)
+          ?.map((s) => TvSeason.fromMap(Map<String, dynamic>.from(s as Map)))
+          .toList(),
     );
   }
 }

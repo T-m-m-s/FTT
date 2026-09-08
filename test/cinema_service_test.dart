@@ -55,6 +55,86 @@ void main() {
       expect(results, isNotEmpty);
       expect(results.first.mediaType, MediaType.tvShow);
     });
+
+    test('fetchTvSeasonsAndEpisodes fetches seasons and episodes for TV series', () async {
+      const showItem = MediaItem(
+        id: 'tv_severance',
+        title: 'Severance',
+        mediaType: MediaType.tvShow,
+        posterUrl: '',
+        backdropUrl: '',
+        releaseYear: 2022,
+        releaseDateFormatted: '2022',
+        genres: ['Drama'],
+        synopsis: '',
+        communityRating: 8.5,
+        creator: 'Apple TV+',
+      );
+
+      final seasons = await cinema.fetchTvSeasonsAndEpisodes(showItem);
+      expect(seasons, isNotEmpty);
+      expect(seasons.first.seasonNumber, greaterThanOrEqualTo(1));
+      expect(seasons.first.episodes, isNotEmpty);
+
+      final firstEp = seasons.first.episodes.first;
+      expect(firstEp.episodeNumber, 1);
+      expect(firstEp.name, isNotEmpty);
+      expect(firstEp.canonicalKey, 's${seasons.first.seasonNumber}_e1');
+    });
+
+    test('LibraryEntry calculates TV progress percentage accurately based on episode count', () {
+      final entry = LibraryEntry(
+        id: 'entry_tv_test',
+        mediaId: 'tv_test',
+        mediaItem: const MediaItem(
+          id: 'tv_test',
+          title: 'Test Show',
+          mediaType: MediaType.tvShow,
+          posterUrl: '',
+          backdropUrl: '',
+          releaseYear: 2024,
+          releaseDateFormatted: '2024',
+          genres: ['Anime'],
+          synopsis: '',
+          communityRating: 9.0,
+          creator: 'Studio',
+        ),
+        status: LibraryStatus.backlog,
+        totalEpisodesCount: 20,
+      );
+
+      expect(entry.progressPercent, 0.0);
+      expect(entry.status, LibraryStatus.backlog);
+
+      // Watch 5 episodes
+      entry.watchedEpisodeIds.addAll(['s1_e1', 's1_e2', 's1_e3', 's1_e4', 's1_e5']);
+      entry.updateTvProgress();
+
+      expect(entry.watchedEpisodesCount, 5);
+      expect(entry.progressPercent, 25.0); // 5 / 20 = 25%
+      expect(entry.status, LibraryStatus.playing);
+
+      // Watch 15 more episodes to reach 20
+      for (int i = 6; i <= 20; i++) {
+        entry.watchedEpisodeIds.add('s1_e$i');
+      }
+      entry.updateTvProgress();
+
+      expect(entry.watchedEpisodesCount, 20);
+      expect(entry.progressPercent, 100.0);
+      expect(entry.status, LibraryStatus.completed);
+
+      // Serialize and deserialize
+      final map = entry.toMap();
+      final restored = LibraryEntry.fromMap(map);
+
+      expect(restored.watchedEpisodesCount, 20);
+      expect(restored.totalEpisodesCount, 20);
+      expect(restored.progressPercent, 100.0);
+      expect(restored.status, LibraryStatus.completed);
+      expect(restored.isEpisodeWatched(1, 1), isTrue);
+      expect(restored.isEpisodeWatched(2, 1), isFalse);
+    });
   });
 
   group('DatabaseService Cinema integration tests', () {

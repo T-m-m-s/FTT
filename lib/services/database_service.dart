@@ -255,6 +255,17 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
+  /// Removes an entry from the library, and optionally cleans up its play sessions
+  void removeEntry(String mediaId, {bool removeSessions = true}) {
+    _library.removeWhere((e) => e.mediaId == mediaId);
+    if (removeSessions) {
+      _sessions.removeWhere((s) => s.mediaId == mediaId);
+      _persistSessions();
+    }
+    _persistLibrary();
+    notifyListeners();
+  }
+
   // Add play / watch session to timeline
   void addSession(PlaySession session) {
     _sessions.insert(0, session);

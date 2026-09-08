@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import '../models/media_item.dart';
 import '../models/media_type.dart';
+import '../models/tv_season.dart';
 
 class CinemaService {
   static final CinemaService _instance = CinemaService._internal();
@@ -290,6 +291,206 @@ class CinemaService {
 
     // Fallback curated trending items
     return _curatedFallbackTrending();
+  }
+
+  /// Fetches seasons and episodes for a TV Show from TMDB or TVMaze
+  Future<List<TvSeason>> fetchTvSeasonsAndEpisodes(
+    MediaItem item, {
+    String? customApiKey,
+  }) async {
+    final apiKey = (customApiKey != null && customApiKey.isNotEmpty)
+        ? customApiKey
+        : bundledApiKey;
+
+    // 1. Try TMDB if it is a TMDB TV show
+    if (item.id.startsWith('tmdb_tv_')) {
+      final tmdbId = item.id.replaceFirst('tmdb_tv_', '');
+      try {
+        final seasons = await _fetchTmdbTvSeasons(tmdbId, apiKey);
+        if (seasons.isNotEmpty) return seasons;
+      } catch (_) {}
+    }
+
+    // 2. Try TVMaze if ID starts with tvmaze_
+    if (item.id.startsWith('tvmaze_')) {
+      final tvmazeId = item.id.replaceFirst('tvmaze_', '');
+      try {
+        final seasons = await _fetchTvMazeEpisodesById(tvmazeId);
+        if (seasons.isNotEmpty) return seasons;
+      } catch (_) {}
+    }
+
+    // 3. Fallback: Search TVMaze by Title (universal fallback, works for any show)
+    try {
+      final seasons = await _fetchTvMazeEpisodesByTitle(item.title);
+      if (seasons.isNotEmpty) return seasons;
+    } catch (_) {}
+
+    // 4. Fallback: If not tried TMDB yet, search TMDB by title
+    if (!item.id.startsWith('tmdb_tv_')) {
+      try {
+        final searchUrl = Uri.parse('$_tmdbBaseUrl/search/tv?api_key=$apiKey&query=${Uri.encodeComponent(item.title)}&include_adult=false');
+        final res = await http.get(searchUrl, headers: {'Accept': 'application/json'}).timeout(const Duration(seconds: 6));
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final results = data['results'] as List<dynamic>? ?? [];
+          if (results.isNotEmpty) {
+            final int tmdbId = results.first['id'] as int;
+            final seasons = await _fetchTmdbTvSeasons(tmdbId.toString(), apiKey);
+            if (seasons.isNotEmpty) return seasons;
+          }
+        }
+      } catch (_) {}
+    }
+
+    return [];
+  }
+
+  Future<List<TvSeason>> _fetchTmdbTvSeasons(String tmdbId, String apiKey) async {
+    final showUrl = Uri.parse('$_tmdbBaseUrl/tv/$tmdbId?api_key=$apiKey');
+    final res = await http.get(showUrl, headers: {'Accept': 'application/json'}).timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) return [];
+
+    final data = jsonDecode(res.body);
+    final rawSeasons = (data['seasons'] as List<dynamic>? ?? [])
+        .map((s) => Map<String, dynamic>.from(s as Map))
+        .toList();
+
+    // Filter out seasons with 0 episodes
+    final validSeasons = rawSeasons.where((s) => ((s['episode_count'] as num?)?.toInt() ?? 0) > 0).toList();
+    if (validSeasons.isEmpty) return [];
+
+    // Fetch episodes for all seasons in parallel (cap to max 30 seasons)
+    final seasonsToFetch = validSeasons.take(30).toList();
+    final List<TvSeason> results = await Future.wait(seasonsToFetch.map((sMap) async {
+      final int sNum = (sMap['season_number'] as num?)?.toInt() ?? 1;
+      final String sName = sMap['name'] as String? ?? 'Season $sNum';
+      final int epCount = (sMap['episode_count'] as num?)?.toInt() ?? 0;
+      final String? poster = sMap['poster_path'] != null
+          ? 'https://image.tmdb.org/t/p/w500${sMap['poster_path']}'
+          : null;
+      final String overview = sMap['overview'] as String? ?? '';
+
+      try {
+        final epUrl = Uri.parse('$_tmdbBaseUrl/tv/$tmdbId/season/$sNum?api_key=$apiKey');
+        final epRes = await http.get(epUrl, headers: {'Accept': 'application/json'}).timeout(const Duration(seconds: 8));
+        if (epRes.statusCode == 200) {
+          final epData = jsonDecode(epRes.body);
+          final rawEps = (epData['episodes'] as List<dynamic>? ?? []);
+          final List<TvEpisode> epList = rawEps.map((e) {
+            final eNum = (e['episode_number'] as num?)?.toInt() ?? 1;
+            final still = e['still_path'] != null
+                ? 'https://image.tmdb.org/t/p/w500${e['still_path']}'
+                : null;
+            return TvEpisode(
+              id: 's${sNum}_e$eNum',
+              seasonNumber: sNum,
+              episodeNumber: eNum,
+              name: (e['name'] as String? ?? 'Episode $eNum').trim(),
+              overview: (e['overview'] as String? ?? '').trim(),
+              runtimeMinutes: (e['runtime'] as num?)?.toInt(),
+              airDate: e['air_date'] as String?,
+              stillUrl: still,
+            );
+          }).toList();
+
+          return TvSeason(
+            seasonNumber: sNum,
+            name: sName,
+            episodeCount: epList.length,
+            posterUrl: poster,
+            overview: overview,
+            episodes: epList,
+          );
+        }
+      } catch (_) {}
+
+      // Fallback if episode endpoint fails: generate stub episodes
+      final List<TvEpisode> stubs = List.generate(
+        epCount,
+        (i) => TvEpisode(
+          id: 's${sNum}_e${i + 1}',
+          seasonNumber: sNum,
+          episodeNumber: i + 1,
+          name: 'Episode ${i + 1}',
+        ),
+      );
+      return TvSeason(
+        seasonNumber: sNum,
+        name: sName,
+        episodeCount: epCount,
+        posterUrl: poster,
+        overview: overview,
+        episodes: stubs,
+      );
+    }));
+
+    results.sort((a, b) => a.seasonNumber.compareTo(b.seasonNumber));
+    return results;
+  }
+
+  Future<List<TvSeason>> _fetchTvMazeEpisodesById(String tvmazeId) async {
+    final url = Uri.parse('$_tvMazeBaseUrl/shows/$tvmazeId/episodes');
+    final res = await http.get(url).timeout(const Duration(seconds: 8));
+    if (res.statusCode == 200) {
+      final List<dynamic> eps = jsonDecode(res.body);
+      return _groupTvMazeEpisodes(eps);
+    }
+    return [];
+  }
+
+  Future<List<TvSeason>> _fetchTvMazeEpisodesByTitle(String title) async {
+    final url = Uri.parse('$_tvMazeBaseUrl/singlesearch/shows?q=${Uri.encodeComponent(title)}&embed=episodes');
+    final res = await http.get(url).timeout(const Duration(seconds: 8));
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      final rawEps = data['_embedded']?['episodes'] as List<dynamic>? ?? [];
+      return _groupTvMazeEpisodes(rawEps);
+    }
+    return [];
+  }
+
+  List<TvSeason> _groupTvMazeEpisodes(List<dynamic> rawEpisodes) {
+    if (rawEpisodes.isEmpty) return [];
+
+    final Map<int, List<TvEpisode>> seasonMap = {};
+    for (final item in rawEpisodes) {
+      final sNum = (item['season'] as num?)?.toInt() ?? 1;
+      final eNum = (item['number'] as num?)?.toInt() ?? 1;
+      final name = (item['name'] as String? ?? 'Episode $eNum').trim();
+      var summary = item['summary'] as String? ?? '';
+      summary = summary.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+      final runtime = (item['runtime'] as num?)?.toInt();
+      final airDate = item['airdate'] as String?;
+      final img = item['image']?['medium'] as String? ?? item['image']?['original'] as String?;
+
+      final ep = TvEpisode(
+        id: 's${sNum}_e$eNum',
+        seasonNumber: sNum,
+        episodeNumber: eNum,
+        name: name,
+        overview: summary,
+        runtimeMinutes: runtime,
+        airDate: airDate,
+        stillUrl: img,
+      );
+
+      seasonMap.putIfAbsent(sNum, () => []).add(ep);
+    }
+
+    final List<TvSeason> seasons = [];
+    final sortedKeys = seasonMap.keys.toList()..sort();
+    for (final sNum in sortedKeys) {
+      final eps = seasonMap[sNum]!;
+      seasons.add(TvSeason(
+        seasonNumber: sNum,
+        name: 'Season $sNum',
+        episodeCount: eps.length,
+        episodes: eps,
+      ));
+    }
+
+    return seasons;
   }
 
   static List<MediaItem> _curatedFallbackTrending() {
