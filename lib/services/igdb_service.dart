@@ -9,8 +9,8 @@ class IgdbService {
   factory IgdbService() => _instance;
   IgdbService._internal();
 
-  String clientId = const String.fromEnvironment('TWITCH_CLIENT_ID', defaultValue: '9rcn1iigfjtwmwvfeps442q1shwkik');
-  String clientSecret = const String.fromEnvironment('TWITCH_CLIENT_SECRET', defaultValue: 'hsulchji3tbhilwiuolw328796j96o');
+  String clientId = const String.fromEnvironment('TWITCH_CLIENT_ID');
+  String clientSecret = const String.fromEnvironment('TWITCH_CLIENT_SECRET');
 
   String? _accessToken;
   DateTime? _tokenExpiry;
