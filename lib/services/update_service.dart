@@ -29,12 +29,13 @@ class AppReleaseInfo {
 }
 
 class UpdateService {
-  static String appVersion = "1.0.1";
+  static String appVersion = "1.0.3";
   static const String githubRepo = "T-m-m-s/FTT";
   static const String releasesApiUrl = "https://api.github.com/repos/$githubRepo/releases";
 
   static bool _hasCheckedStartup = false;
   static bool enableAutoCheck = true;
+  static String? lastCheckError;
 
   /// Loads dynamic version from app package metadata
   static Future<String> getAppVersion() async {
@@ -74,6 +75,7 @@ class UpdateService {
 
   /// Fetches latest release info from GitHub API. Returns null if up to date or on network error.
   static Future<AppReleaseInfo?> fetchLatestRelease() async {
+    lastCheckError = null;
     try {
       final res = await http.get(
         Uri.parse(releasesApiUrl),
@@ -83,7 +85,14 @@ class UpdateService {
         },
       ).timeout(const Duration(seconds: 10));
 
-      if (res.statusCode != 200) return null;
+      if (res.statusCode == 404) {
+        lastCheckError = "Releases not found (HTTP 404). Ensure repository is public.";
+        return null;
+      }
+      if (res.statusCode != 200) {
+        lastCheckError = "GitHub returned HTTP ${res.statusCode}";
+        return null;
+      }
 
       final decoded = jsonDecode(res.body);
       Map<String, dynamic>? data;
@@ -199,6 +208,21 @@ class UpdateService {
 
     if (release != null && isVersionNewer(release.version, appVersion)) {
       showUpdateDialog(context, release);
+    } else if (lastCheckError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(child: Text(lastCheckError!)),
+            ],
+          ),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
