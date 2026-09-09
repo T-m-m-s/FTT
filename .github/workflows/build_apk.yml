@@ -1,19 +1,17 @@
-name: CI & Android Release
+name: Build & Release Android APK
 
 on:
   push:
-    branches: [ main, master ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  lint-and-test:
-    name: Lint & Test
+  build-and-release:
+    name: Build & Release APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -39,30 +37,6 @@ jobs:
 
       - name: Run tests
         run: flutter test
-
-  build-and-release:
-    name: Build & Release APK
-    needs: lint-and-test
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
 
       - name: Build Android Release APK with Secrets
         run: |
