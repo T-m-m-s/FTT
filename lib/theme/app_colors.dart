@@ -40,4 +40,6 @@ class AppColors {
   static const Color statusBacklog = Color(0xFF5B6987);
   static const Color statusCompleted = Color(0xFF2ED573);
   static const Color statusWishlist = Color(0xFFFFB142);
+  static const Color statusAbandoned = Color(0xFFFF5252);
+  static const Color success = Color(0xFF2ED573);
 }

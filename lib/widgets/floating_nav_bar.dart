@@ -38,7 +38,7 @@ class FloatingNavBar extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildNavItem(0, Icons.sports_esports_rounded, 'Home'),
+              _buildNavItem(0, Icons.home_rounded, 'Home'),
               const SizedBox(width: 4),
               _buildNavItem(1, Icons.shelves, 'Library'),
               const SizedBox(width: 4),

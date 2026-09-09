@@ -17,17 +17,25 @@ class DatabaseService extends ChangeNotifier {
   static const String _keySessions = 'ftt_sessions';
   static const String _keySteamProfile = 'ftt_steam_profile';
   static const String _keyActiveFilter = 'ftt_active_filter';
+  static const String _keyMalUsername = 'ftt_mal_username';
+  static const String _keyAnilistUsername = 'ftt_anilist_username';
 
   SharedPreferences? _prefs;
 
   final List<LibraryEntry> _library = [];
   final List<PlaySession> _sessions = [];
   SteamProfile? _steamProfile;
+  String? _malUsername;
+  String? _anilistUsername;
   MediaType _activeMediaFilter = MediaType.game; // Default to games or unified
 
   List<LibraryEntry> get library => List.unmodifiable(_library);
   List<PlaySession> get sessions => List.unmodifiable(_sessions);
   SteamProfile? get steamProfile => _steamProfile;
+  String? get malUsername => _malUsername;
+  String? get anilistUsername => _anilistUsername;
+  int get malAnimeCount => _library.where((e) => e.id.startsWith('entry_mal_')).length;
+  int get anilistAnimeCount => _library.where((e) => e.id.startsWith('entry_anilist_')).length;
   MediaType get activeMediaFilter => _activeMediaFilter;
 
   void setMediaFilter(MediaType type) {
@@ -68,6 +76,10 @@ class DatabaseService extends ChangeNotifier {
         debugPrint('Error loading saved Steam profile: $e');
       }
     }
+
+    // 2b. Load Anime Tracker Usernames
+    _malUsername = prefs?.getString(_keyMalUsername);
+    _anilistUsername = prefs?.getString(_keyAnilistUsername);
 
     // 3. Load Library
     final libraryJson = prefs?.getString(_keyLibrary);
@@ -303,10 +315,55 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Anime Trackers integration
+  Future<void> setMalUsername(String? username) async {
+    _malUsername = username;
+    final prefs = await _getPrefs();
+    if (username != null && username.isNotEmpty) {
+      await prefs?.setString(_keyMalUsername, username);
+    } else {
+      await prefs?.remove(_keyMalUsername);
+    }
+    notifyListeners();
+  }
+
+  Future<void> setAnilistUsername(String? username) async {
+    _anilistUsername = username;
+    final prefs = await _getPrefs();
+    if (username != null && username.isNotEmpty) {
+      await prefs?.setString(_keyAnilistUsername, username);
+    } else {
+      await prefs?.remove(_keyAnilistUsername);
+    }
+    notifyListeners();
+  }
+
+  void clearMalData() {
+    _library.removeWhere((e) => e.id.startsWith('entry_mal_'));
+    _sessions.removeWhere((s) => s.id.startsWith('sess_mal_'));
+    setMalUsername(null);
+    _persistLibrary();
+    _persistSessions();
+    notifyListeners();
+  }
+
+  void clearAnilistData() {
+    _library.removeWhere((e) => e.id.startsWith('entry_anilist_'));
+    _sessions.removeWhere((s) => s.id.startsWith('sess_anilist_'));
+    setAnilistUsername(null);
+    _persistLibrary();
+    _persistSessions();
+    notifyListeners();
+  }
+
   void clearAllData() {
     _library.clear();
     _sessions.clear();
     _steamProfile = null;
+    _malUsername = null;
+    _anilistUsername = null;
+    setMalUsername(null);
+    setAnilistUsername(null);
     _persistSteamProfile();
     _persistLibrary();
     _persistSessions();

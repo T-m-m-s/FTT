@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/library_entry.dart';
+import '../models/media_type.dart';
 import '../theme/app_colors.dart';
 
 class PlayingNowCard extends StatelessWidget {
@@ -76,28 +77,46 @@ class PlayingNowCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Donut progress icon on top-left
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
-                        shape: BoxShape.circle,
+                  // Donut progress icon on top-left (only for games and tvShow; movies are binary)
+                  if (entry.mediaItem.mediaType != MediaType.movie)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            value: (entry.progressPercent / 100.0).clamp(0.0, 1.0),
+                            strokeWidth: 3.5,
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+                          ),
+                        ),
                       ),
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          value: (entry.progressPercent / 100.0).clamp(0.0, 1.0),
-                          strokeWidth: 3.5,
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+                    )
+                  else if (entry.status == LibraryStatus.completed)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.success,
+                          size: 18,
                         ),
                       ),
                     ),
-                  ),
                   // Quick Log Session Plus button on bottom-right of image
                   Positioned(
                     bottom: 6,
@@ -149,8 +168,12 @@ class PlayingNowCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     entry.lastActivity != null
-                        ? 'Last played ${_formatRelative(entry.lastActivity!)}'
-                        : '${entry.formattedTimeSpent} logged',
+                        ? (entry.mediaItem.mediaType == MediaType.movie
+                            ? 'Watched ${_formatRelative(entry.lastActivity!)}'
+                            : 'Last played ${_formatRelative(entry.lastActivity!)}')
+                        : (entry.mediaItem.mediaType == MediaType.movie
+                            ? (entry.status == LibraryStatus.completed ? 'Watched' : 'In Watchlist')
+                            : '${entry.formattedTimeSpent} logged'),
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,

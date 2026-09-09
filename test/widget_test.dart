@@ -17,7 +17,7 @@ void main() {
 
     // Verify Home tab is active and visible
     expect(find.text('Home'), findsOneWidget);
-    expect(find.byIcon(Icons.sports_esports_rounded), findsWidgets);
+    expect(find.byIcon(Icons.home_rounded), findsOneWidget);
     expect(find.byIcon(Icons.shelves), findsOneWidget);
     expect(find.byIcon(Icons.timeline_rounded), findsOneWidget);
     expect(find.byIcon(Icons.pie_chart_outline_rounded), findsOneWidget);
@@ -31,5 +31,16 @@ void main() {
     await tester.tap(find.byIcon(Icons.timeline_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Timeline'), findsOneWidget);
+
+    // Press device back button -> returns to Library tab
+    final dynamic widgetsAppState = tester.state(find.byType(WidgetsApp));
+    await widgetsAppState.didPopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Library'), findsOneWidget);
+
+    // Press device back button again -> returns to Home tab
+    await widgetsAppState.didPopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Home'), findsOneWidget);
   });
 }

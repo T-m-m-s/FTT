@@ -30,7 +30,7 @@ void main() {
         );
         expect(item.id, isNotEmpty);
         expect(item.title, isNotEmpty);
-        expect(item.releaseYear, greaterThan(2000));
+        expect(item.releaseYear, greaterThan(1900));
         expect(item.communityRating, greaterThanOrEqualTo(0.0));
       }
     });

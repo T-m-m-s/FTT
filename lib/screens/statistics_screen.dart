@@ -136,6 +136,10 @@ class StatisticsScreen extends StatelessWidget {
               _buildActivitySection(context, sessions, entries, isGame),
               const SizedBox(height: 24),
 
+              // Genre Breakdown & Analytics
+              GenreDistributionChart(entries: entries, isGame: isGame),
+              const SizedBox(height: 24),
+
               // Ratings Distribution
               RatingsDistributionChart(entries: entries),
             ],

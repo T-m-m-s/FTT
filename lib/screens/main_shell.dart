@@ -19,6 +19,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentTabIndex = 0;
+  final List<int> _tabHistory = [0];
 
   @override
   void initState() {
@@ -37,6 +38,35 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  void _onTabSelected(int index) {
+    if (_currentTabIndex == index) return;
+    setState(() {
+      _currentTabIndex = index;
+      if (index == 0) {
+        _tabHistory.clear();
+        _tabHistory.add(0);
+      } else {
+        _tabHistory.remove(index);
+        _tabHistory.add(index);
+      }
+    });
+  }
+
+  void _handleBackNavigation() {
+    if (_currentTabIndex != 0) {
+      setState(() {
+        if (_tabHistory.length > 1) {
+          _tabHistory.removeLast();
+          _currentTabIndex = _tabHistory.last;
+        } else {
+          _currentTabIndex = 0;
+          _tabHistory.clear();
+          _tabHistory.add(0);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
@@ -47,31 +77,36 @@ class _MainShellState extends State<MainShell> {
       SearchScreen(onOpenDetail: _openDetail),
     ];
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Current Active Screen
-          IndexedStack(
-            index: _currentTabIndex,
-            children: screens,
-          ),
+    return PopScope(
+      canPop: _currentTabIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: Stack(
+          children: [
+            // Current Active Screen
+            IndexedStack(
+              index: _currentTabIndex,
+              children: screens,
+            ),
 
-          // Floating Navigation Pill Dock (reproducing Nook's screenshot 1 & 2)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 24,
-            child: Center(
-              child: FloatingNavBar(
-                currentIndex: _currentTabIndex,
-                onTabSelected: (index) {
-                  setState(() => _currentTabIndex = index);
-                },
+            // Floating Navigation Pill Dock (reproducing Nook's screenshot 1 & 2)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 24,
+              child: Center(
+                child: FloatingNavBar(
+                  currentIndex: _currentTabIndex,
+                  onTabSelected: _onTabSelected,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

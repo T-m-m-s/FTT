@@ -3,12 +3,12 @@ import '../models/library_entry.dart';
 import '../models/media_type.dart';
 import '../models/play_session.dart';
 import '../services/database_service.dart';
-import '../services/update_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/hero_banner.dart';
 import '../widgets/playing_now_card.dart';
 import 'steam_sync_screen.dart';
 import 'search_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final Function(LibraryEntry) onOpenDetail;
@@ -148,11 +148,14 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ],
                             const SizedBox(width: 8),
-                            // Check for Updates Button
+                            // Settings & Connections Button
                             GestureDetector(
-                              onTap: () => UpdateService.checkUpdateManually(context),
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                              ),
                               child: Tooltip(
-                                message: 'Check for Updates',
+                                message: 'Settings & Connections',
                                 child: Container(
                                   padding: const EdgeInsets.all(7),
                                   decoration: BoxDecoration(
@@ -163,7 +166,7 @@ class HomeScreen extends StatelessWidget {
                                     ),
                                   ),
                                   child: const Icon(
-                                    Icons.system_update_rounded,
+                                    Icons.settings_rounded,
                                     size: 16,
                                     color: AppColors.primaryLight,
                                   ),
@@ -241,6 +244,7 @@ class HomeScreen extends StatelessWidget {
                             notes: isTv
                                 ? 'Episode logged from Home'
                                 : (isMovie ? 'Movie watch session logged from Home' : 'Quick session logged from Home'),
+                            isCompletion: isMovie,
                           );
                           db.addSession(session);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -249,7 +253,7 @@ class HomeScreen extends StatelessWidget {
                                 isTv
                                     ? 'Logged episode for ${entry.mediaItem.title} (${logDuration}m)'
                                     : (isMovie
-                                        ? 'Logged watch for ${entry.mediaItem.title} (${logDuration}m)'
+                                        ? 'Marked as watched: ${entry.mediaItem.title} (${logDuration}m)'
                                         : 'Logged $logDuration min for ${entry.mediaItem.title}'),
                               ),
                               duration: const Duration(seconds: 2),

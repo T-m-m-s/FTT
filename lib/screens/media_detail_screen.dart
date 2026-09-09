@@ -278,7 +278,7 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
     );
   }
 
-  void _quickLogCinemaSession({required int duration, required String note}) {
+  void _quickLogCinemaSession({required int duration, required String note, bool isCompletion = false}) {
     final session = PlaySession(
       id: 'sess_${DateTime.now().millisecondsSinceEpoch}',
       mediaId: _entry.mediaId,
@@ -289,12 +289,16 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
       durationMinutes: duration,
       platform: _entry.platform,
       notes: note,
+      isCompletion: isCompletion,
     );
     db.addSession(session);
     setState(() {
       _entry.timeSpentMinutes += duration;
       _entry.lastActivity = DateTime.now();
-      if (_entry.status == LibraryStatus.backlog || _entry.status == LibraryStatus.wishlist) {
+      if (isCompletion) {
+        _entry.status = LibraryStatus.completed;
+        _entry.progressPercent = 100.0;
+      } else if (_entry.status == LibraryStatus.backlog || _entry.status == LibraryStatus.wishlist) {
         _entry.status = LibraryStatus.playing;
       }
     });
@@ -304,6 +308,74 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
         content: Text('Logged $note ($duration min) for ${_entry.mediaItem.title}'),
         duration: const Duration(seconds: 2),
         backgroundColor: AppColors.primary,
+      ),
+    );
+  }
+
+  void _markMovieWatched() {
+    final duration = (_entry.mediaItem.runtimeMinutes != null && _entry.mediaItem.runtimeMinutes! > 0)
+        ? _entry.mediaItem.runtimeMinutes!
+        : 120;
+    _quickLogCinemaSession(
+      duration: duration,
+      note: 'Full Movie',
+      isCompletion: true,
+    );
+  }
+
+  void _toggleMovieWatchedStatus() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                _entry.mediaItem.title,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.replay_rounded, color: AppColors.primaryLight),
+                title: const Text('Log Rewatch', style: TextStyle(color: AppColors.textPrimary)),
+                subtitle: const Text('Add another watch session to your timeline', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _markMovieWatched();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.bookmark_remove_outlined, color: AppColors.statusAbandoned),
+                title: const Text('Mark as Unwatched (Move to Watchlist)', style: TextStyle(color: AppColors.textPrimary)),
+                subtitle: const Text('Reverts status to watchlist', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _entry.status = LibraryStatus.backlog;
+                    _entry.progressPercent = 0.0;
+                  });
+                  db.addOrUpdateEntry(_entry);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Marked "${_entry.mediaItem.title}" as unwatched (in Watchlist)'),
+                      backgroundColor: AppColors.surfaceElevated,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -746,26 +818,34 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                         const SizedBox(width: 8),
                       ],
                     ] else ...[
-                      OutlinedButton(
-                        onPressed: () {
-                          final duration = (_entry.mediaItem.runtimeMinutes != null && _entry.mediaItem.runtimeMinutes! > 0)
-                              ? _entry.mediaItem.runtimeMinutes!
-                              : 120;
-                          _quickLogCinemaSession(
-                            duration: duration,
-                            note: 'Full Movie',
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primaryLight,
-                          side: const BorderSide(color: AppColors.primaryLight),
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      if (_entry.status == LibraryStatus.completed) ...[
+                        OutlinedButton.icon(
+                          onPressed: _toggleMovieWatchedStatus,
+                          icon: const Icon(Icons.check_rounded, size: 14, color: AppColors.success),
+                          label: const Text('Watched', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.success)),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: AppColors.success.withValues(alpha: 0.12),
+                            side: const BorderSide(color: AppColors.success),
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
                         ),
-                        child: const Text('+ Watched', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      ),
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 8),
+                      ] else ...[
+                        OutlinedButton.icon(
+                          onPressed: _markMovieWatched,
+                          icon: const Icon(Icons.check_rounded, size: 14, color: AppColors.primaryLight),
+                          label: const Text('+ Watched', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryLight)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppColors.primaryLight),
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                     ],
                   ],
                   ElevatedButton.icon(
@@ -785,32 +865,60 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
           const SizedBox(height: 16),
           Row(
             children: [
-              // Circular progress indicator
-              SizedBox(
-                width: 60,
-                height: 60,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CircularProgressIndicator(
-                      value: (_entry.progressPercent / 100.0).clamp(0.0, 1.0),
-                      strokeWidth: 6,
-                      backgroundColor: AppColors.surfaceElevated,
-                      valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+              // Circular progress indicator (Games/TV) or Binary status badge (Movies)
+              if (_entry.mediaItem.mediaType == MediaType.movie) ...[
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: _entry.status == LibraryStatus.completed
+                        ? AppColors.success.withValues(alpha: 0.15)
+                        : AppColors.surfaceElevated,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _entry.status == LibraryStatus.completed
+                          ? AppColors.success
+                          : AppColors.borderSubtle,
+                      width: 2,
                     ),
-                    Center(
-                      child: Text(
-                        '${_entry.progressPercent.toInt()}%',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                  ),
+                  child: Icon(
+                    _entry.status == LibraryStatus.completed
+                        ? Icons.check_circle_rounded
+                        : Icons.bookmark_outline_rounded,
+                    color: _entry.status == LibraryStatus.completed
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                    size: 30,
+                  ),
+                ),
+              ] else ...[
+                SizedBox(
+                  width: 60,
+                  height: 60,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CircularProgressIndicator(
+                        value: (_entry.progressPercent / 100.0).clamp(0.0, 1.0),
+                        strokeWidth: 6,
+                        backgroundColor: AppColors.surfaceElevated,
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+                      ),
+                      Center(
+                        child: Text(
+                          '${_entry.progressPercent.toInt()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(width: 18),
               Expanded(
                 child: Column(
@@ -825,16 +933,35 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                       ),
                       const SizedBox(height: 3),
                     ],
-                    Text(
-                      'Time: ${_entry.formattedTimeSpent}',
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Status: ${_entry.status.shortLabel}',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                    ),
-                    const SizedBox(height: 3),
+                    if (_entry.mediaItem.mediaType == MediaType.movie) ...[
+                      Text(
+                        _entry.status == LibraryStatus.completed ? 'Status: Watched' : 'Status: In Watchlist',
+                        style: TextStyle(
+                          color: _entry.status == LibraryStatus.completed ? AppColors.success : AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      if (_entry.mediaItem.runtimeMinutes != null && _entry.mediaItem.runtimeMinutes! > 0) ...[
+                        Text(
+                          'Runtime: ${_entry.mediaItem.runtimeMinutes} min',
+                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                        const SizedBox(height: 3),
+                      ],
+                    ] else ...[
+                      Text(
+                        'Time: ${_entry.formattedTimeSpent}',
+                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Status: ${_entry.status.shortLabel}',
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                      const SizedBox(height: 3),
+                    ],
                     Text(
                       _entry.lastActivity != null
                           ? 'Last: ${DateFormat("MMM d, y").format(_entry.lastActivity!)}'
