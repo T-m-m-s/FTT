@@ -29,7 +29,7 @@ class AppReleaseInfo {
 }
 
 class UpdateService {
-  static String appVersion = "1.0.7";
+  static String appVersion = "1.0.8";
   static const String githubRepo = "T-m-m-s/FTT";
   static const String releasesApiUrl = "https://api.github.com/repos/$githubRepo/releases";
 

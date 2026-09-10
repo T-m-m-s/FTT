@@ -226,6 +226,7 @@ class _GenreDistributionChartState extends State<GenreDistributionChart> {
       for (final rawGenre in e.mediaItem.genres) {
         final g = rawGenre.trim();
         if (g.isEmpty) continue;
+        if (g.toLowerCase() == 'steam' || g.toLowerCase() == 'game') continue;
         titleCounts[g] = (titleCounts[g] ?? 0) + 1;
         timeCounts[g] = (timeCounts[g] ?? 0) + e.timeSpentMinutes;
       }

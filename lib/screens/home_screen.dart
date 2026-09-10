@@ -68,93 +68,13 @@ class HomeScreen extends StatelessWidget {
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (isGame) ...[
-                              // Steam Sync Button (Gaming mode)
-                              GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const SteamSyncScreen()),
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1B2838).withValues(alpha: 0.85),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: db.steamProfile != null
-                                          ? AppColors.statusCompleted.withValues(alpha: 0.6)
-                                          : Colors.white.withValues(alpha: 0.2),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.cloud_sync_rounded,
-                                        size: 16,
-                                        color: db.steamProfile != null
-                                            ? AppColors.statusCompleted
-                                            : Colors.white,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        db.steamProfile != null ? 'Steam Connected' : 'Steam Sync',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ] else ...[
-                              // Add Film / Series Button (Cinema mode)
-                              GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SearchScreen(onOpenDetail: onOpenDetail),
-                                  ),
-                                ),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceElevated.withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: AppColors.primary.withValues(alpha: 0.6),
-                                    ),
-                                  ),
-                                  child: const Row(
-                                    children: [
-                                      Icon(
-                                        Icons.movie_creation_outlined,
-                                        size: 15,
-                                        color: AppColors.primaryLight,
-                                      ),
-                                      SizedBox(width: 5),
-                                      Text(
-                                        'Add Film/Show',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(width: 8),
                             // Manage Shelves Button
                             GestureDetector(
                               onTap: () => _showManageShelvesSheet(context, db),
                               child: Tooltip(
                                 message: 'Manage Home Shelves',
                                 child: Container(
-                                  padding: const EdgeInsets.all(7),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: AppColors.surfaceElevated.withValues(alpha: 0.9),
                                     shape: BoxShape.circle,
@@ -164,7 +84,7 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                   child: const Icon(
                                     Icons.tune_rounded,
-                                    size: 16,
+                                    size: 18,
                                     color: AppColors.primaryLight,
                                   ),
                                 ),
@@ -180,7 +100,7 @@ class HomeScreen extends StatelessWidget {
                               child: Tooltip(
                                 message: 'Settings & Connections',
                                 child: Container(
-                                  padding: const EdgeInsets.all(7),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     color: AppColors.surfaceElevated.withValues(alpha: 0.9),
                                     shape: BoxShape.circle,
@@ -190,7 +110,7 @@ class HomeScreen extends StatelessWidget {
                                   ),
                                   child: const Icon(
                                     Icons.settings_rounded,
-                                    size: 16,
+                                    size: 18,
                                     color: AppColors.primaryLight,
                                   ),
                                 ),

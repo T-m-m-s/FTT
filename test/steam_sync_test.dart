@@ -87,5 +87,19 @@ void main() {
         print('  • ${g.name} (${g.totalHours}h)');
       }
     });
+
+    test('resolves game genres correctly without generic Steam placeholder', () {
+      final eldenRingGenres = SteamService.resolveGameGenres(1245620, 'ELDEN RING');
+      expect(eldenRingGenres, contains('Souls-like'));
+      expect(eldenRingGenres, contains('RPG'));
+      expect(eldenRingGenres.contains('Steam'), isFalse);
+
+      final balatroGenres = SteamService.resolveGameGenres(2379780, 'Balatro');
+      expect(balatroGenres, contains('Roguelike'));
+      expect(balatroGenres, contains('Card Game'));
+
+      final unknownSouls = SteamService.resolveGameGenres(0, 'Some Unknown Dark Souls Clone');
+      expect(unknownSouls, contains('Souls-like'));
+    });
   });
 }

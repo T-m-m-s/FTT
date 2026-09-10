@@ -44,7 +44,7 @@ enum LibraryStatus {
 class LibraryEntry {
   final String id;
   final String mediaId;
-  final MediaItem mediaItem;
+  MediaItem mediaItem;
   LibraryStatus status;
   double? userRating; // 1 to 10
   String platform; // e.g. "PC - Steam", "PlayStation 5", "Netflix"

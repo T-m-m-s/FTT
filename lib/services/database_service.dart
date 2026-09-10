@@ -9,6 +9,7 @@ import '../models/steam_profile.dart';
 import '../models/steam_achievement.dart';
 import '../models/custom_category.dart';
 import 'sample_data.dart';
+import 'steam_service.dart';
 
 class DatabaseService extends ChangeNotifier {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -96,6 +97,25 @@ class DatabaseService extends ChangeNotifier {
         _library.clear();
         for (final item in list) {
           _library.add(LibraryEntry.fromMap(Map<String, dynamic>.from(item as Map)));
+        }
+
+        // Migrate/enrich any game entries that have generic 'Steam' or empty genres
+        bool libraryUpdated = false;
+        for (final entry in _library) {
+          if (entry.mediaItem.mediaType == MediaType.game) {
+            final g = entry.mediaItem.genres;
+            if (g.isEmpty || (g.length == 1 && g.first.toLowerCase() == 'steam')) {
+              final resolved = SteamService.resolveGameGenres(
+                entry.mediaItem.steamAppId ?? 0,
+                entry.mediaItem.title,
+              );
+              entry.mediaItem = entry.mediaItem.copyWith(genres: resolved);
+              libraryUpdated = true;
+            }
+          }
+        }
+        if (libraryUpdated) {
+          _persistLibrary();
         }
       } catch (e) {
         debugPrint('Error loading saved library: $e');
@@ -572,6 +592,13 @@ class DatabaseService extends ChangeNotifier {
         }
         existing.platform = 'PC - Steam';
         existing.isOwned = true;
+        // Enrich genres if missing or generic 'Steam'
+        final g = existing.mediaItem.genres;
+        if (g.isEmpty || (g.length == 1 && g.first.toLowerCase() == 'steam')) {
+          existing.mediaItem = existing.mediaItem.copyWith(
+            genres: SteamService.resolveGameGenres(steamGame.appId, steamGame.name),
+          );
+        }
       } else {
         // Auto-create new game entry from Steam
         final newItem = MediaItem(
@@ -582,7 +609,7 @@ class DatabaseService extends ChangeNotifier {
           backdropUrl: steamGame.headerUrl,
           releaseYear: 2020,
           releaseDateFormatted: 'Steam Library',
-          genres: const ['Steam'],
+          genres: SteamService.resolveGameGenres(steamGame.appId, steamGame.name),
           synopsis: 'Imported from your connected Steam Library.',
           communityRating: 8.5,
           creator: 'Valve / Steam',

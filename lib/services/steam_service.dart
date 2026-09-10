@@ -42,6 +42,245 @@ class SteamService {
     3444230: 'Abulia',
   };
 
+  static final Map<int, List<String>> _appGenresCache = {
+    // User & Popular Games
+    297130: ['Action', 'Adventure', 'Indie', 'Souls-like'], // Titan Souls
+    2835570: ['Action', 'Strategy', 'Indie', 'Horror'], // Buckshot Roulette
+    3431040: ['Indie', 'Simulation', 'Horror', 'Puzzle'], // That's not my Neighbor
+    1604000: ['Indie', 'Visual Novel', 'Horror'], // Milk outside a bag of milk
+    2019810: ['Indie', 'Puzzle', 'Mystery'], // Boxes: Lost Fragments
+    774361: ['Action', 'Adventure', 'Indie', 'Metroidvania', 'Souls-like'], // Blasphemous
+    1392820: ['Indie', 'Visual Novel', 'Horror'], // Milk inside a bag of milk
+    1150640: ['Card Game', 'Strategy', 'Simulation'], // Yu-Gi-Oh! Legacy of the Duelist
+    367520: ['Action', 'Adventure', 'Indie', 'Metroidvania', 'Platformer'], // Hollow Knight
+    1449850: ['Card Game', 'Strategy', 'Simulation'], // Yu-Gi-Oh! Master Duel
+    431960: ['Utilities', 'Casual'], // Wallpaper Engine
+    1245620: ['Action', 'RPG', 'Souls-like', 'Open World'], // ELDEN RING
+    1903340: ['RPG', 'Adventure'], // Clair Obscur: Expedition 33
+    2114740: ['Action', 'Adventure', 'Indie', 'Metroidvania', 'Souls-like'], // Blasphemous 2
+    2379780: ['Roguelike', 'Strategy', 'Card Game', 'Indie'], // Balatro
+    570940: ['Action', 'RPG', 'Souls-like'], // DARK SOULS™: REMASTERED
+    787480: ['Visual Novel', 'Adventure', 'Mystery'], // Phoenix Wright: Ace Attorney Trilogy
+    438100: ['Simulation', 'Casual', 'VR'], // VRChat
+    2680010: ['Action', 'RPG', 'Souls-like'], // The First Berserker: Khazan
+    1818750: ['Fighting', 'Action', 'Platformer'], // MultiVersus
+    646570: ['Roguelike', 'Strategy', 'Card Game', 'Indie'], // Slay the Spire
+    397740: ['RPG', 'Indie'], // Hylics
+    371970: ['Roguelike', 'RPG', 'Indie'], // Barony
+    1002300: ['RPG', 'Horror', 'Indie'], // Fear & Hunger
+    1158850: ['Visual Novel', 'Adventure', 'Mystery'], // The Great Ace Attorney Chronicles
+    2057760: ['RPG', 'Indie'], // Esoteric Ebb
+    1766100: ['Action', 'RPG', 'Souls-like', 'Indie'], // The Last Hero of Nostalgaia
+    3444230: ['Adventure', 'Indie'], // Abulia
+    // Other popular games
+    292030: ['Action', 'RPG', 'Open World'], // The Witcher 3
+    1086940: ['RPG', 'Strategy', 'Adventure'], // Baldur's Gate 3
+    1091500: ['Action', 'RPG', 'Open World'], // Cyberpunk 2077
+    1145360: ['Action', 'Roguelike', 'Indie'], // Hades
+    1888930: ['Action', 'Adventure'], // The Last of Us Part I
+    730: ['Action', 'FPS', 'Multiplayer'], // Counter-Strike 2
+    570: ['Strategy', 'MOBA', 'Multiplayer'], // Dota 2
+    440: ['Action', 'FPS', 'Multiplayer'], // Team Fortress 2
+    814380: ['Action', 'Souls-like', 'Adventure'], // Sekiro
+    374320: ['Action', 'RPG', 'Souls-like'], // Dark Souls III
+    335300: ['Action', 'RPG', 'Souls-like'], // Dark Souls II
+    210970: ['Roguelike', 'Action', 'Indie'], // The Binding of Isaac
+    1942280: ['Roguelike', 'Action', 'Casual'], // Brotato
+    1794680: ['Action', 'Roguelike', 'Casual'], // Vampire Survivors
+    553850: ['Action', 'Shooter'], // HELLDIVERS 2
+    2358720: ['Action', 'RPG', 'Souls-like'], // Black Myth: Wukong
+    883710: ['Horror', 'Action'], // Resident Evil 2
+    413150: ['Simulation', 'RPG', 'Indie'], // Stardew Valley
+    281990: ['Strategy', 'Sci-Fi'], // Stellaris
+    289070: ['Strategy', 'Historical'], // Civilization VI
+    1446780: ['Action', 'RPG'], // Monster Hunter Rise
+    582010: ['Action', 'RPG'], // Monster Hunter World
+    1174180: ['Action', 'Adventure', 'Open World'], // Red Dead Redemption 2
+    105600: ['Adventure', 'Sandbox', 'Indie'], // Terraria
+    271590: ['Action', 'Adventure', 'Open World'], // GTA V
+    1172470: ['FPS', 'Action', 'Battle Royale'], // Apex Legends
+    1085660: ['Action', 'FPS', 'MMO'], // Destiny 2
+    381210: ['Horror', 'Action'], // Dead by Daylight
+  };
+
+  /// Resolves accurate genres for a Steam game by App ID and name
+  static List<String> resolveGameGenres(int appId, String gameName) {
+    if (appId > 0 && _appGenresCache.containsKey(appId)) {
+      return List<String>.from(_appGenresCache[appId]!);
+    }
+    return _inferGenresFromTitle(gameName);
+  }
+
+  /// Heuristic fallback to deduce genre tags from game title
+  static List<String> _inferGenresFromTitle(String title) {
+    final lower = title.toLowerCase();
+    final Set<String> genres = {};
+
+    if (lower.contains('souls') ||
+        lower.contains('borne') ||
+        lower.contains('ring') ||
+        lower.contains('sekiro') ||
+        lower.contains('lies of p') ||
+        lower.contains('nostalgaia') ||
+        lower.contains('khazan')) {
+      genres.addAll(['Action', 'RPG', 'Souls-like']);
+    }
+    if (lower.contains('rogue') ||
+        lower.contains('spire') ||
+        lower.contains('balatro') ||
+        lower.contains('isaac') ||
+        lower.contains('hades') ||
+        lower.contains('dead cells') ||
+        lower.contains('brotato') ||
+        lower.contains('survivor')) {
+      genres.addAll(['Roguelike', 'Indie']);
+    }
+    if (lower.contains('duel') ||
+        lower.contains('card') ||
+        lower.contains('deck') ||
+        lower.contains('magic') ||
+        lower.contains('pokemon') ||
+        lower.contains('yu-gi-oh') ||
+        lower.contains('heartstone')) {
+      genres.addAll(['Card Game', 'Strategy']);
+    }
+    if (lower.contains('horror') ||
+        lower.contains('fear') ||
+        lower.contains('evil') ||
+        lower.contains('silent') ||
+        lower.contains('dead') ||
+        lower.contains('fnaf') ||
+        lower.contains('buckshot') ||
+        lower.contains('nightmare') ||
+        lower.contains('neighbor') ||
+        lower.contains('milk inside') ||
+        lower.contains('milk outside')) {
+      genres.addAll(['Horror', 'Indie']);
+    }
+    if (lower.contains('metroid') ||
+        lower.contains('castlevania') ||
+        lower.contains('vania') ||
+        lower.contains('hollow knight') ||
+        lower.contains('blasphemous') ||
+        lower.contains('ori ') ||
+        lower.contains('platform')) {
+      genres.addAll(['Action', 'Metroidvania', 'Platformer']);
+    }
+    if (lower.contains('rpg') ||
+        lower.contains('fantasy') ||
+        lower.contains('quest') ||
+        lower.contains('chronicles') ||
+        lower.contains('witcher') ||
+        lower.contains('fallout') ||
+        lower.contains('elder scrolls') ||
+        lower.contains('persona') ||
+        lower.contains('shin megami')) {
+      genres.addAll(['RPG', 'Adventure']);
+    }
+    if (lower.contains('attorney') ||
+        lower.contains('danganronpa') ||
+        lower.contains('novel') ||
+        lower.contains('clannad') ||
+        lower.contains('steins') ||
+        lower.contains('zero escape')) {
+      genres.addAll(['Visual Novel', 'Mystery']);
+    }
+    if (lower.contains('puzzle') ||
+        lower.contains('boxes') ||
+        lower.contains('escape') ||
+        lower.contains('portal') ||
+        lower.contains('talos') ||
+        lower.contains('witness') ||
+        lower.contains('tetris') ||
+        lower.contains('baba')) {
+      genres.addAll(['Puzzle', 'Indie']);
+    }
+    if (lower.contains('sim') ||
+        lower.contains('craft') ||
+        lower.contains('tycoon') ||
+        lower.contains('city') ||
+        lower.contains('planet') ||
+        lower.contains('vrchat') ||
+        lower.contains('wallpaper')) {
+      genres.addAll(['Simulation', 'Casual']);
+    }
+    if (lower.contains('shoot') ||
+        lower.contains('call of') ||
+        lower.contains('counter-strike') ||
+        lower.contains('strike') ||
+        lower.contains('warfare') ||
+        lower.contains('battlefield') ||
+        lower.contains('doom') ||
+        lower.contains('halo') ||
+        lower.contains('destiny') ||
+        lower.contains('overwatch') ||
+        lower.contains('apex')) {
+      genres.addAll(['Action', 'FPS']);
+    }
+    if (lower.contains('fight') ||
+        lower.contains('smash') ||
+        lower.contains('tekken') ||
+        lower.contains('street fighter') ||
+        lower.contains('mortal kombat') ||
+        lower.contains('multiversus') ||
+        lower.contains('brawl')) {
+      genres.addAll(['Fighting', 'Action']);
+    }
+    if (lower.contains('racing') ||
+        lower.contains('forza') ||
+        lower.contains('need for speed') ||
+        lower.contains('f1') ||
+        lower.contains('gran turismo') ||
+        lower.contains('rally')) {
+      genres.addAll(['Racing', 'Sports']);
+    }
+    if (lower.contains('strategy') ||
+        lower.contains('civilization') ||
+        lower.contains('age of') ||
+        lower.contains('crusader') ||
+        lower.contains('total war') ||
+        lower.contains('warhammer') ||
+        lower.contains('tactics') ||
+        lower.contains('starcraft')) {
+      genres.addAll(['Strategy']);
+    }
+
+    if (genres.isEmpty) {
+      return ['Action', 'Adventure'];
+    }
+    return genres.toList();
+  }
+
+  /// Optionally queries the public Steam Store API for official store genres
+  static Future<List<String>?> fetchAppGenresFromStore(int appId) async {
+    if (appId <= 0) return null;
+    try {
+      final url = Uri.parse('https://store.steampowered.com/api/appdetails?appids=$appId&filters=genres');
+      final res = await http.get(url, headers: _defaultHeaders).timeout(const Duration(seconds: 6));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>?;
+        final appData = data?['$appId'];
+        if (appData != null && appData['success'] == true) {
+          final genresList = appData['data']?['genres'] as List?;
+          if (genresList != null && genresList.isNotEmpty) {
+            final List<String> result = [];
+            for (final g in genresList) {
+              final desc = g['description']?.toString().trim();
+              if (desc != null && desc.isNotEmpty && desc.toLowerCase() != 'steam') {
+                result.add(desc);
+              }
+            }
+            if (result.isNotEmpty) {
+              _appGenresCache[appId] = result;
+              return result;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static const Map<String, String> _defaultHeaders = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',

@@ -70,4 +70,36 @@ class MediaItem {
       runtimeMinutes: (map['runtimeMinutes'] as num?)?.toInt(),
     );
   }
+
+  MediaItem copyWith({
+    String? id,
+    String? title,
+    MediaType? mediaType,
+    String? posterUrl,
+    String? backdropUrl,
+    int? releaseYear,
+    String? releaseDateFormatted,
+    List<String>? genres,
+    String? synopsis,
+    double? communityRating,
+    String? creator,
+    int? steamAppId,
+    int? runtimeMinutes,
+  }) {
+    return MediaItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      mediaType: mediaType ?? this.mediaType,
+      posterUrl: posterUrl ?? this.posterUrl,
+      backdropUrl: backdropUrl ?? this.backdropUrl,
+      releaseYear: releaseYear ?? this.releaseYear,
+      releaseDateFormatted: releaseDateFormatted ?? this.releaseDateFormatted,
+      genres: genres ?? this.genres,
+      synopsis: synopsis ?? this.synopsis,
+      communityRating: communityRating ?? this.communityRating,
+      creator: creator ?? this.creator,
+      steamAppId: steamAppId ?? this.steamAppId,
+      runtimeMinutes: runtimeMinutes ?? this.runtimeMinutes,
+    );
+  }
 }
