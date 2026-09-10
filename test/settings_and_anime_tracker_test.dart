@@ -57,7 +57,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Connect MyAnimeList'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)), findsOneWidget);
 
     // Cancel dialog
     await tester.tap(find.text('Cancel'));

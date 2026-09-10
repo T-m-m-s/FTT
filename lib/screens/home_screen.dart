@@ -148,6 +148,29 @@ class HomeScreen extends StatelessWidget {
                               ),
                             ],
                             const SizedBox(width: 8),
+                            // Manage Shelves Button
+                            GestureDetector(
+                              onTap: () => _showManageShelvesSheet(context, db),
+                              child: Tooltip(
+                                message: 'Manage Home Shelves',
+                                child: Container(
+                                  padding: const EdgeInsets.all(7),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceElevated.withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.15),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.tune_rounded,
+                                    size: 16,
+                                    color: AppColors.primaryLight,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             // Settings & Connections Button
                             GestureDetector(
                               onTap: () => Navigator.push(
@@ -188,83 +211,125 @@ class HomeScreen extends StatelessWidget {
                 child: _buildEmptyOnboardingCard(context, isGame),
               ),
 
-            // "Playing Now" / "Watching Now" Section
-            if (playing.isNotEmpty) ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        isGame ? 'Playing Now' : 'Watching Now',
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      Text(
-                        '${playing.length} active',
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 195,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: playing.length,
-                    itemBuilder: (context, index) {
-                      final entry = playing[index];
-                      return PlayingNowCard(
-                        entry: entry,
-                        onTap: () => onOpenDetail(entry),
-                        onLogSession: () {
-                          final isTv = entry.mediaItem.mediaType == MediaType.tvShow;
-                          final isMovie = entry.mediaItem.mediaType == MediaType.movie;
-                          final movieRuntime = entry.mediaItem.runtimeMinutes;
-                          final int logDuration = (isMovie && movieRuntime != null && movieRuntime > 0)
-                              ? movieRuntime
-                              : 45;
-                          final session = PlaySession(
-                            id: 'sess_${DateTime.now().millisecondsSinceEpoch}',
-                            mediaId: entry.mediaId,
-                            mediaTitle: entry.mediaItem.title,
-                            mediaPoster: entry.mediaItem.posterUrl,
-                            mediaType: entry.mediaItem.mediaType,
-                            date: DateTime.now(),
-                            durationMinutes: logDuration,
-                            platform: entry.platform,
-                            notes: isTv
-                                ? 'Episode logged from Home'
-                                : (isMovie ? 'Movie watch session logged from Home' : 'Quick session logged from Home'),
-                            isCompletion: isMovie,
-                          );
-                          db.addSession(session);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                isTv
-                                    ? 'Logged episode for ${entry.mediaItem.title} (${logDuration}m)'
-                                    : (isMovie
-                                        ? 'Marked as watched: ${entry.mediaItem.title} (${logDuration}m)'
-                                        : 'Logged $logDuration min for ${entry.mediaItem.title}'),
+            // Dynamic Home Shelves based on User Categories
+            for (final cat in db.homeCategories) ...[
+              Builder(
+                builder: (context) {
+                  final catEntries = db.getEntriesForCategory(cat.id);
+                  final entries = (cat.id == 'cat_now_playing' && catEntries.isEmpty)
+                      ? playing
+                      : catEntries;
+
+                  if (entries.isEmpty) {
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
+
+                  final isNowPlaying = cat.id == 'cat_now_playing';
+                  final title = isNowPlaying
+                      ? (isGame ? 'Playing Now' : 'Watching Now')
+                      : cat.name;
+
+                  return SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () => _showManageShelvesSheet(context, db),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surfaceElevated,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: AppColors.borderSubtle),
+                                      ),
+                                      child: const Icon(
+                                        Icons.tune_rounded,
+                                        size: 13,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              duration: const Duration(seconds: 2),
-                              backgroundColor: AppColors.primary,
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
+                              Text(
+                                '${entries.length} ${entries.length == 1 ? "item" : "items"}',
+                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          height: 195,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: entries.length,
+                            itemBuilder: (context, index) {
+                              final entry = entries[index];
+                              return PlayingNowCard(
+                                entry: entry,
+                                onTap: () => onOpenDetail(entry),
+                                onLogSession: () {
+                                  final isTv = entry.mediaItem.mediaType == MediaType.tvShow;
+                                  final isMovie = entry.mediaItem.mediaType == MediaType.movie;
+                                  final movieRuntime = entry.mediaItem.runtimeMinutes;
+                                  final int logDuration = (isMovie && movieRuntime != null && movieRuntime > 0)
+                                      ? movieRuntime
+                                      : 45;
+                                  final session = PlaySession(
+                                    id: 'sess_${DateTime.now().millisecondsSinceEpoch}',
+                                    mediaId: entry.mediaId,
+                                    mediaTitle: entry.mediaItem.title,
+                                    mediaPoster: entry.mediaItem.posterUrl,
+                                    mediaType: entry.mediaItem.mediaType,
+                                    date: DateTime.now(),
+                                    durationMinutes: logDuration,
+                                    platform: entry.platform,
+                                    notes: isTv
+                                        ? 'Episode logged from Home'
+                                        : (isMovie ? 'Movie watch session logged from Home' : 'Quick session logged from Home'),
+                                    isCompletion: isMovie,
+                                  );
+                                  db.addSession(session);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        isTv
+                                            ? 'Logged episode for ${entry.mediaItem.title} (${logDuration}m)'
+                                            : (isMovie
+                                                ? 'Marked as watched: ${entry.mediaItem.title} (${logDuration}m)'
+                                                : 'Logged $logDuration min for ${entry.mediaItem.title}'),
+                                      ),
+                                      duration: const Duration(seconds: 2),
+                                      backgroundColor: AppColors.primary,
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
 
@@ -632,6 +697,160 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _showManageShelvesSheet(BuildContext context, DatabaseService db) {
+    final newCatController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final allCats = db.categories;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Manage Home Shelves',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Icon(Icons.view_agenda_outlined, color: AppColors.primaryLight, size: 20),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Toggle which category shelves appear on your Home screen.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.4,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: allCats.length,
+                      separatorBuilder: (_, _) => const Divider(color: AppColors.borderSubtle, height: 1),
+                      itemBuilder: (ctx, index) {
+                        final cat = allCats[index];
+                        final count = db.getEntriesForCategory(cat.id).length;
+                        final isDefault = cat.id == 'cat_now_playing';
+
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            cat.name,
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            '$count items in this shelf',
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Switch.adaptive(
+                                value: cat.showOnHome,
+                                activeTrackColor: AppColors.primary,
+                                onChanged: (val) async {
+                                  await db.toggleCategoryOnHome(cat.id);
+                                  setSheetState(() {});
+                                },
+                              ),
+                              if (!isDefault)
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                                  tooltip: 'Delete Category',
+                                  onPressed: () async {
+                                    await db.deleteCategory(cat.id);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: newCatController,
+                          decoration: InputDecoration(
+                            hintText: 'New shelf category...',
+                            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                            filled: true,
+                            fillColor: AppColors.surfaceElevated,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColors.borderSubtle),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onPressed: () async {
+                          final text = newCatController.text.trim();
+                          if (text.isNotEmpty) {
+                            await db.addCategory(text, showOnHome: true);
+                            newCatController.clear();
+                            setSheetState(() {});
+                          }
+                        },
+                        child: const Text('Add Shelf', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

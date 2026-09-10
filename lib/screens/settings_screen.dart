@@ -19,6 +19,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   bool _isMalLoading = false;
   bool _isAnilistLoading = false;
+  final TextEditingController _newCategoryController = TextEditingController();
+
+  @override
+  void dispose() {
+    _newCategoryController.dispose();
+    super.dispose();
+  }
 
   void _showConnectMalDialog() {
     final controller = TextEditingController(text: db.malUsername ?? '');
@@ -636,6 +643,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             visualDensity: VisualDensity.compact,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Section 3: Custom Shelves & Categories
+              _buildSectionHeader('Custom Shelves & Categories', Icons.view_agenda_rounded),
+              _buildCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Manage custom categories and choose which ones display as shelves on your Home screen.',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                    const SizedBox(height: 14),
+                    for (final cat in db.categories) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    cat.name,
+                                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
+                                  ),
+                                  Text(
+                                    '${db.getEntriesForCategory(cat.id).length} items',
+                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: cat.showOnHome,
+                              activeTrackColor: AppColors.primary,
+                              onChanged: (val) => db.toggleCategoryOnHome(cat.id),
+                            ),
+                            if (cat.id != 'cat_now_playing')
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Colors.redAccent),
+                                tooltip: 'Delete category',
+                                onPressed: () => db.deleteCategory(cat.id),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (cat != db.categories.last)
+                        const Divider(color: AppColors.borderSubtle, height: 1),
+                    ],
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _newCategoryController,
+                            decoration: InputDecoration(
+                              hintText: 'Add new category...',
+                              hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                              filled: true,
+                              fillColor: AppColors.surfaceElevated,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(color: AppColors.borderSubtle),
+                              ),
+                            ),
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          ),
+                          onPressed: () {
+                            final text = _newCategoryController.text.trim();
+                            if (text.isNotEmpty) {
+                              db.addCategory(text, showOnHome: true);
+                              _newCategoryController.clear();
+                            }
+                          },
+                          child: const Text('Add', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),

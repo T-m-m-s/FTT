@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../models/steam_profile.dart';
+import '../models/steam_achievement.dart';
 
 class SteamService {
   static const String _baseUrl = 'https://api.steampowered.com';
@@ -153,6 +154,92 @@ class SteamService {
       if (e.toString().contains('Network error')) rethrow;
     }
     return null;
+  }
+
+  /// Fetches game achievements for a user and app via Steam Community public XML.
+  /// Works completely without an API key using public HTTP requests:
+  /// `https://steamcommunity.com/profiles/{steamIdOrProfile}/stats/{appId}/?xml=1`
+  /// (or `https://steamcommunity.com/id/{steamIdOrProfile}/stats/{appId}/?xml=1`)
+  static Future<List<SteamAchievement>> fetchGameAchievements({
+    required String steamIdOrProfile,
+    required int appId,
+    http.Client? client,
+  }) async {
+    final clean = extractUsernameOrId(steamIdOrProfile);
+    if (clean.isEmpty || appId <= 0) return [];
+
+    final isNumericId = RegExp(r'^\d{17}$').hasMatch(clean);
+    final url = isNumericId
+        ? 'https://steamcommunity.com/profiles/$clean/stats/$appId/?xml=1'
+        : 'https://steamcommunity.com/id/$clean/stats/$appId/?xml=1';
+
+    try {
+      final httpClient = client ?? http.Client();
+      final res = await httpClient.get(
+        Uri.parse(url),
+        headers: _defaultHeaders,
+      ).timeout(const Duration(seconds: 12));
+
+      if (res.statusCode != 200) return [];
+
+      final body = res.body;
+      if (body.contains('<error>') || !body.contains('<achievements>')) {
+        return [];
+      }
+
+      final List<SteamAchievement> achievements = [];
+      final achievementMatches = RegExp(
+        r'<achievement closed="([01])">([\s\S]*?)<\/achievement>',
+      ).allMatches(body);
+
+      for (final match in achievementMatches) {
+        final isClosed = match.group(1) == '1';
+        final block = match.group(2) ?? '';
+
+        final apiNameMatch = RegExp(r'<apiname><!\[CDATA\[(.*?)\]\]><\/apiname>').firstMatch(block)
+            ?? RegExp(r'<apiname>(.*?)<\/apiname>').firstMatch(block);
+        final nameMatch = RegExp(r'<name><!\[CDATA\[(.*?)\]\]><\/name>').firstMatch(block)
+            ?? RegExp(r'<name>(.*?)<\/name>').firstMatch(block);
+        final descMatch = RegExp(r'<description><!\[CDATA\[(.*?)\]\]><\/description>').firstMatch(block)
+            ?? RegExp(r'<description>(.*?)<\/description>').firstMatch(block);
+        final iconClosedMatch = RegExp(r'<iconClosed><!\[CDATA\[(.*?)\]\]><\/iconClosed>').firstMatch(block)
+            ?? RegExp(r'<iconClosed>(.*?)<\/iconClosed>').firstMatch(block);
+        final iconOpenMatch = RegExp(r'<iconOpen><!\[CDATA\[(.*?)\]\]><\/iconOpen>').firstMatch(block)
+            ?? RegExp(r'<iconOpen>(.*?)<\/iconOpen>').firstMatch(block);
+        final timestampMatch = RegExp(r'<unlockTimestamp>(\d+)<\/unlockTimestamp>').firstMatch(block);
+
+        final apiName = apiNameMatch?.group(1) ?? '';
+        final name = nameMatch?.group(1) ?? apiName;
+        final description = descMatch?.group(1) ?? '';
+        final iconClosed = iconClosedMatch?.group(1);
+        final iconOpen = iconOpenMatch?.group(1);
+
+        DateTime? unlockTime;
+        if (timestampMatch != null) {
+          final ts = int.tryParse(timestampMatch.group(1)!);
+          if (ts != null && ts > 0) {
+            unlockTime = DateTime.fromMillisecondsSinceEpoch(ts * 1000);
+          }
+        }
+
+        // On Steam: iconOpen is the unlocked (color) icon, iconClosed is locked (gray) icon
+        final mainIcon = (isClosed ? (iconOpen ?? iconClosed) : (iconClosed ?? iconOpen)) ?? '';
+
+        achievements.add(SteamAchievement(
+          apiName: apiName,
+          name: name,
+          description: description,
+          iconUrl: mainIcon,
+          iconLockedUrl: iconClosed,
+          isUnlocked: isClosed,
+          unlockTime: isClosed ? unlockTime : null,
+        ));
+      }
+
+      return achievements;
+    } catch (_) {
+      return [];
+    }
   }
 
   static Future<String> _resolveAppName(int appId) async {

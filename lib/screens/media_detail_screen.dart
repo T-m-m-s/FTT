@@ -4,10 +4,13 @@ import '../models/library_entry.dart';
 import '../models/media_type.dart';
 import '../models/play_session.dart';
 import '../models/tv_season.dart';
+import '../models/steam_achievement.dart';
 import '../services/cinema_service.dart';
 import '../services/database_service.dart';
+import '../services/steam_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/format_bottom_sheet.dart';
+import 'settings_screen.dart';
 
 class MediaDetailScreen extends StatefulWidget {
   final LibraryEntry entry;
@@ -25,6 +28,9 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
   bool _isLoadingSeasons = false;
   int _selectedSeasonNumber = 1;
   final Set<String> _expandedEpisodeIds = {};
+  List<SteamAchievement> _achievements = [];
+  bool _isLoadingAchievements = false;
+  String _achievementFilter = 'all';
 
   @override
   void initState() {
@@ -36,6 +42,41 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
         _pickInitialSeason();
       } else {
         _loadTvSeasons();
+      }
+    } else if (_entry.mediaItem.mediaType == MediaType.game) {
+      if (_entry.cachedAchievements != null && _entry.cachedAchievements!.isNotEmpty) {
+        _achievements = List.from(_entry.cachedAchievements!);
+      } else if (_entry.mediaItem.steamAppId != null && db.steamProfile != null) {
+        _loadSteamAchievements();
+      }
+    }
+  }
+
+  Future<void> _loadSteamAchievements({bool force = false}) async {
+    final appId = _entry.mediaItem.steamAppId;
+    final steamId = db.steamProfile?.steamId;
+    if (appId == null || steamId == null || steamId.isEmpty) return;
+
+    setState(() => _isLoadingAchievements = true);
+    try {
+      final fetched = await SteamService.fetchGameAchievements(
+        steamIdOrProfile: steamId,
+        appId: appId,
+      );
+      if (mounted) {
+        setState(() {
+          _achievements = fetched;
+          _isLoadingAchievements = false;
+          if (fetched.isNotEmpty) {
+            _entry.cachedAchievements = fetched;
+            _entry.updateGameAchievementProgress();
+            db.updateEntryAchievements(_entry.mediaId, fetched);
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingAchievements = false);
       }
     }
   }
@@ -592,11 +633,21 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                       fontSize: 13,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 14),
+
+                  // Categories Chips Row
+                  _buildCategoriesRow(),
+                  const SizedBox(height: 20),
 
                   // Playthrough Card (Matching Screenshot 1 Screen 4)
                   _buildPlaythroughCard(isGame),
                   const SizedBox(height: 16),
+
+                  // Steam Achievements Explorer (for Games)
+                  if (isGame && (item.steamAppId != null || _achievements.isNotEmpty)) ...[
+                    _buildSteamAchievementsSection(),
+                    const SizedBox(height: 16),
+                  ],
 
                   // TV Seasons & Episodes Explorer
                   if (item.mediaType == MediaType.tvShow) ...[
@@ -903,7 +954,13 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                         value: (_entry.progressPercent / 100.0).clamp(0.0, 1.0),
                         strokeWidth: 6,
                         backgroundColor: AppColors.surfaceElevated,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          (_entry.mediaItem.mediaType == MediaType.game &&
+                                  _entry.totalAchievementsCount != null &&
+                                  _entry.totalAchievementsCount! > 0)
+                              ? const Color(0xFFFFB800)
+                              : AppColors.primaryLight,
+                        ),
                       ),
                       Center(
                         child: Text(
@@ -951,6 +1008,13 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
                         const SizedBox(height: 3),
                       ],
                     ] else ...[
+                      if (_entry.totalAchievementsCount != null && _entry.totalAchievementsCount! > 0) ...[
+                        Text(
+                          '🏆 Achievements: ${_entry.unlockedAchievementsCount ?? 0} / ${_entry.totalAchievementsCount}',
+                          style: const TextStyle(color: Color(0xFFFFB800), fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 3),
+                      ],
                       Text(
                         'Time: ${_entry.formattedTimeSpent}',
                         style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600),
@@ -1395,6 +1459,486 @@ class _MediaDetailScreenState extends State<MediaDetailScreen> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCategoriesRow() {
+    final entryCats = db.categories
+        .where((c) => _entry.customCategories.contains(c.id))
+        .toList();
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final cat in entryCats)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.label_rounded, size: 13, color: AppColors.primaryLight),
+                const SizedBox(width: 5),
+                Text(
+                  cat.name,
+                  style: const TextStyle(
+                    color: AppColors.primaryLight,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      db.toggleEntryCategory(_entry.mediaId, cat.id);
+                    });
+                  },
+                  child: const Icon(Icons.close_rounded, size: 13, color: AppColors.textMuted),
+                ),
+              ],
+            ),
+          ),
+        ActionChip(
+          avatar: const Icon(Icons.add_rounded, size: 14, color: Colors.white70),
+          label: Text(
+            entryCats.isEmpty ? 'Add to Category' : 'Category',
+            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+          ),
+          backgroundColor: AppColors.surfaceElevated,
+          side: const BorderSide(color: AppColors.borderSubtle),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+          onPressed: () => _showCategoryPickerSheet(context),
+        ),
+      ],
+    );
+  }
+
+  void _showCategoryPickerSheet(BuildContext context) {
+    final newCatController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final allCats = db.categories;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Categories & Shelves',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${_entry.customCategories.length} selected',
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.35,
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: allCats.length,
+                      separatorBuilder: (_, _) => const Divider(color: AppColors.borderSubtle, height: 1),
+                      itemBuilder: (ctx, index) {
+                        final cat = allCats[index];
+                        final isAssigned = _entry.customCategories.contains(cat.id);
+                        return CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            cat.name,
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(
+                            cat.showOnHome ? 'Shown on Home' : 'Hidden from Home',
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                          ),
+                          value: isAssigned,
+                          activeColor: AppColors.primary,
+                          checkColor: Colors.white,
+                          onChanged: (val) {
+                            setState(() {
+                              db.toggleEntryCategory(_entry.mediaId, cat.id);
+                            });
+                            setSheetState(() {});
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: newCatController,
+                          decoration: InputDecoration(
+                            hintText: 'New category name...',
+                            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                            filled: true,
+                            fillColor: AppColors.surfaceElevated,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColors.borderSubtle),
+                            ),
+                          ),
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        onPressed: () async {
+                          final text = newCatController.text.trim();
+                          if (text.isNotEmpty) {
+                            await db.addCategory(text);
+                            final newlyCreated = db.categories.last;
+                            db.toggleEntryCategory(_entry.mediaId, newlyCreated.id);
+                            newCatController.clear();
+                            setState(() {});
+                            setSheetState(() {});
+                          }
+                        },
+                        child: const Text('Add', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSteamAchievementsSection() {
+    final total = _achievements.length;
+    final unlocked = _achievements.where((a) => a.isUnlocked).length;
+    final locked = total - unlocked;
+    final percent = total > 0 ? (unlocked / total * 100.0) : 0.0;
+
+    List<SteamAchievement> displayedList;
+    if (_achievementFilter == 'unlocked') {
+      displayedList = _achievements.where((a) => a.isUnlocked).toList();
+    } else if (_achievementFilter == 'locked') {
+      displayedList = _achievements.where((a) => !a.isUnlocked).toList();
+    } else {
+      displayedList = _achievements;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.borderSubtle.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Title & Refresh
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.emoji_events_rounded, color: Color(0xFFFFB800), size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Steam Achievements',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isLoadingAchievements)
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFFB800)),
+                    )
+                  else
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.textSecondary),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Refresh Achievements',
+                      onPressed: () => _loadSteamAchievements(force: true),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (_achievements.isEmpty) ...[
+            if (_isLoadingAchievements)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text('Loading achievements from Steam...', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                ),
+              )
+            else if (db.steamProfile == null)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Connect your Steam account to view achievements',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.link_rounded, size: 16),
+                        label: const Text('Connect Steam in Settings'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primaryLight,
+                          side: const BorderSide(color: AppColors.primaryLight),
+                        ),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'No achievements found or profile stats are private.',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        icon: const Icon(Icons.refresh_rounded, size: 16),
+                        label: const Text('Retry Fetching'),
+                        onPressed: () => _loadSteamAchievements(force: true),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ] else ...[
+            // Progress Bar & Stats
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '$unlocked of $total Unlocked (${percent.toStringAsFixed(1)}%)',
+                  style: const TextStyle(
+                    color: Color(0xFFFFB800),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (percent == 100.0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFB800).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFFB800)),
+                    ),
+                    child: const Text('100% PERFECT', style: TextStyle(color: Color(0xFFFFB800), fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: (percent / 100.0).clamp(0.0, 1.0),
+                minHeight: 7,
+                backgroundColor: AppColors.surfaceElevated,
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFFB800)),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Filter Tabs
+            Row(
+              children: [
+                _buildFilterChip('all', 'All ($total)'),
+                const SizedBox(width: 8),
+                _buildFilterChip('unlocked', 'Unlocked ($unlocked)'),
+                const SizedBox(width: 8),
+                _buildFilterChip('locked', 'Locked ($locked)'),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Achievements List
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: displayedList.length,
+              separatorBuilder: (_, _) => const Divider(color: AppColors.borderSubtle, height: 1),
+              itemBuilder: (context, index) {
+                final a = displayedList[index];
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Icon with rounded corners
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          color: AppColors.surfaceElevated,
+                          child: a.iconUrl.isNotEmpty
+                              ? Image.network(
+                                  a.iconUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => const Icon(Icons.emoji_events_outlined, color: AppColors.textMuted, size: 22),
+                                )
+                              : const Icon(Icons.emoji_events_outlined, color: AppColors.textMuted, size: 22),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Title & Description
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              a.name,
+                              style: TextStyle(
+                                color: a.isUnlocked ? Colors.white : AppColors.textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (a.description.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                a.description,
+                                style: const TextStyle(
+                                  color: AppColors.textMuted,
+                                  fontSize: 11,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                            if (a.isUnlocked && a.unlockTime != null) ...[
+                              const SizedBox(height: 3),
+                              Text(
+                                'Unlocked ${DateFormat("d MMM yyyy, HH:mm").format(a.unlockTime!)}',
+                                style: const TextStyle(
+                                  color: Color(0xFFFFB800),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Status Icon
+                      if (a.isUnlocked)
+                        const Icon(Icons.check_circle_rounded, color: Color(0xFFFFB800), size: 18)
+                      else
+                        const Icon(Icons.lock_outline_rounded, color: AppColors.textMuted, size: 18),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String key, String label) {
+    final isSelected = _achievementFilter == key;
+    return GestureDetector(
+      onTap: () => setState(() => _achievementFilter = key),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFB800).withValues(alpha: 0.2) : AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFFB800) : AppColors.borderSubtle,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? const Color(0xFFFFB800) : AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }

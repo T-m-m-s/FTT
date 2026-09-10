@@ -1,6 +1,7 @@
 import 'media_item.dart';
 import 'media_type.dart';
 import 'tv_season.dart';
+import 'steam_achievement.dart';
 
 enum LibraryStatus {
   playing,
@@ -60,6 +61,10 @@ class LibraryEntry {
   List<String> watchedEpisodeIds; // e.g. ["s1_e1", "s1_e2"]
   int? totalEpisodesCount;
   List<TvSeason>? cachedSeasons;
+  List<SteamAchievement>? cachedAchievements;
+  int? unlockedAchievementsCount;
+  int? totalAchievementsCount;
+  List<String> customCategories;
 
   LibraryEntry({
     required this.id,
@@ -81,8 +86,13 @@ class LibraryEntry {
     List<String>? watchedEpisodeIds,
     this.totalEpisodesCount,
     this.cachedSeasons,
+    this.cachedAchievements,
+    this.unlockedAchievementsCount,
+    this.totalAchievementsCount,
+    List<String>? customCategories,
   })  : addedDate = addedDate ?? DateTime.now(),
-        watchedEpisodeIds = watchedEpisodeIds ?? [];
+        watchedEpisodeIds = watchedEpisodeIds ?? [],
+        customCategories = customCategories ?? [];
 
   bool isEpisodeWatched(int season, int episode) {
     return watchedEpisodeIds.contains('s${season}_e$episode');
@@ -99,6 +109,18 @@ class LibraryEntry {
       } else if (watchedEpisodeIds.isNotEmpty &&
           (status == LibraryStatus.backlog || status == LibraryStatus.wishlist)) {
         status = LibraryStatus.playing;
+      }
+    }
+  }
+
+  /// Recalculates game progress percentage based on Steam achievements
+  void updateGameAchievementProgress() {
+    if (cachedAchievements != null && cachedAchievements!.isNotEmpty) {
+      totalAchievementsCount = cachedAchievements!.length;
+      unlockedAchievementsCount = cachedAchievements!.where((a) => a.isUnlocked).length;
+      progressPercent = ((unlockedAchievementsCount! / totalAchievementsCount!) * 100.0).clamp(0.0, 100.0);
+      if (unlockedAchievementsCount == totalAchievementsCount && totalAchievementsCount! > 0) {
+        status = LibraryStatus.completed;
       }
     }
   }
@@ -132,6 +154,10 @@ class LibraryEntry {
       'watchedEpisodeIds': watchedEpisodeIds,
       'totalEpisodesCount': totalEpisodesCount,
       'cachedSeasons': cachedSeasons?.map((s) => s.toMap()).toList(),
+      'cachedAchievements': cachedAchievements?.map((a) => a.toMap()).toList(),
+      'unlockedAchievementsCount': unlockedAchievementsCount,
+      'totalAchievementsCount': totalAchievementsCount,
+      'customCategories': customCategories,
     };
   }
 
@@ -181,6 +207,15 @@ class LibraryEntry {
       cachedSeasons: (map['cachedSeasons'] as List<dynamic>?)
           ?.map((s) => TvSeason.fromMap(Map<String, dynamic>.from(s as Map)))
           .toList(),
+      cachedAchievements: (map['cachedAchievements'] as List<dynamic>?)
+          ?.map((a) => SteamAchievement.fromMap(Map<String, dynamic>.from(a as Map)))
+          .toList(),
+      unlockedAchievementsCount: (map['unlockedAchievementsCount'] as num?)?.toInt(),
+      totalAchievementsCount: (map['totalAchievementsCount'] as num?)?.toInt(),
+      customCategories: (map['customCategories'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 }

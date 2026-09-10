@@ -6,6 +6,8 @@ import '../models/media_type.dart';
 import '../models/library_entry.dart';
 import '../models/play_session.dart';
 import '../models/steam_profile.dart';
+import '../models/steam_achievement.dart';
+import '../models/custom_category.dart';
 import 'sample_data.dart';
 
 class DatabaseService extends ChangeNotifier {
@@ -19,11 +21,13 @@ class DatabaseService extends ChangeNotifier {
   static const String _keyActiveFilter = 'ftt_active_filter';
   static const String _keyMalUsername = 'ftt_mal_username';
   static const String _keyAnilistUsername = 'ftt_anilist_username';
+  static const String _keyCategories = 'ftt_custom_categories';
 
   SharedPreferences? _prefs;
 
   final List<LibraryEntry> _library = [];
   final List<PlaySession> _sessions = [];
+  final List<CustomCategory> _categories = [];
   SteamProfile? _steamProfile;
   String? _malUsername;
   String? _anilistUsername;
@@ -31,6 +35,9 @@ class DatabaseService extends ChangeNotifier {
 
   List<LibraryEntry> get library => List.unmodifiable(_library);
   List<PlaySession> get sessions => List.unmodifiable(_sessions);
+  List<CustomCategory> get categories => List.unmodifiable(_categories);
+  List<CustomCategory> get homeCategories =>
+      _categories.where((c) => c.showOnHome).toList()..sort((a, b) => a.order.compareTo(b.order));
   SteamProfile? get steamProfile => _steamProfile;
   String? get malUsername => _malUsername;
   String? get anilistUsername => _anilistUsername;
@@ -110,6 +117,30 @@ class DatabaseService extends ChangeNotifier {
       }
     }
 
+    // 5. Load Categories
+    final categoriesJson = prefs?.getString(_keyCategories);
+    if (categoriesJson != null && categoriesJson.isNotEmpty) {
+      try {
+        final list = jsonDecode(categoriesJson) as List<dynamic>;
+        _categories.clear();
+        for (final item in list) {
+          _categories.add(CustomCategory.fromMap(Map<String, dynamic>.from(item as Map)));
+        }
+      } catch (e) {
+        debugPrint('Error loading saved categories: $e');
+      }
+    }
+
+    if (_categories.isEmpty) {
+      _categories.add(CustomCategory(
+        id: 'cat_now_playing',
+        name: 'Now Playing',
+        showOnHome: true,
+        order: 0,
+      ));
+      _persistCategories();
+    }
+
     // Purge any legacy sample data so only real user data appears
     final initialLibCount = _library.length;
     _library.removeWhere((e) => e.id.startsWith('entry_game_') || e.mediaId.startsWith('game_'));
@@ -169,6 +200,17 @@ class DatabaseService extends ChangeNotifier {
     }
   }
 
+  Future<void> _persistCategories() async {
+    try {
+      final prefs = await _getPrefs();
+      if (prefs == null) return;
+      final jsonString = jsonEncode(_categories.map((c) => c.toMap()).toList());
+      await prefs.setString(_keyCategories, jsonString);
+    } catch (e) {
+      debugPrint('Error persisting categories: $e');
+    }
+  }
+
   /// Explicit flush of all state to storage
   Future<void> persistAll() async {
     await Future.wait([
@@ -176,6 +218,7 @@ class DatabaseService extends ChangeNotifier {
       _persistSessions(),
       _persistSteamProfile(),
       _persistFilter(),
+      _persistCategories(),
     ]);
   }
 
@@ -278,6 +321,109 @@ class DatabaseService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Categories management
+  Future<void> addCategory(String name, {bool showOnHome = true}) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final newCat = CustomCategory(
+      id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
+      name: trimmed,
+      showOnHome: showOnHome,
+      order: _categories.length,
+    );
+    _categories.add(newCat);
+    await _persistCategories();
+    notifyListeners();
+  }
+
+  Future<void> updateCategory(String id, {String? name, bool? showOnHome, int? order}) async {
+    final index = _categories.indexWhere((c) => c.id == id);
+    if (index >= 0) {
+      if (name != null) _categories[index].name = name.trim();
+      if (showOnHome != null) _categories[index].showOnHome = showOnHome;
+      if (order != null) _categories[index].order = order;
+      await _persistCategories();
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteCategory(String id) async {
+    _categories.removeWhere((c) => c.id == id);
+    for (final entry in _library) {
+      entry.customCategories.remove(id);
+    }
+    await _persistCategories();
+    await _persistLibrary();
+    notifyListeners();
+  }
+
+  Future<void> toggleCategoryOnHome(String id) async {
+    final index = _categories.indexWhere((c) => c.id == id);
+    if (index >= 0) {
+      _categories[index].showOnHome = !_categories[index].showOnHome;
+      await _persistCategories();
+      notifyListeners();
+    }
+  }
+
+  Future<void> reorderCategories(int oldIndex, int newIndex) async {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final item = _categories.removeAt(oldIndex);
+    _categories.insert(newIndex, item);
+    for (int i = 0; i < _categories.length; i++) {
+      _categories[i].order = i;
+    }
+    await _persistCategories();
+    notifyListeners();
+  }
+
+  List<LibraryEntry> getEntriesForCategory(String categoryId) {
+    if (categoryId == 'cat_now_playing') {
+      return currentLibraryFiltered
+          .where((e) => e.customCategories.contains(categoryId) || e.status == LibraryStatus.playing)
+          .toList();
+    }
+    return currentLibraryFiltered
+        .where((e) => e.customCategories.contains(categoryId))
+        .toList();
+  }
+
+  void toggleEntryCategory(String mediaId, String categoryId) {
+    final index = _library.indexWhere((e) => e.mediaId == mediaId);
+    if (index >= 0) {
+      final entry = _library[index];
+      if (entry.customCategories.contains(categoryId)) {
+        entry.customCategories.remove(categoryId);
+      } else {
+        entry.customCategories.add(categoryId);
+      }
+      _persistLibrary();
+      notifyListeners();
+    }
+  }
+
+  void setEntryCategories(String mediaId, List<String> categoryIds) {
+    final index = _library.indexWhere((e) => e.mediaId == mediaId);
+    if (index >= 0) {
+      _library[index].customCategories = List.from(categoryIds);
+      _persistLibrary();
+      notifyListeners();
+    }
+  }
+
+  void updateEntryAchievements(String mediaId, List<SteamAchievement> achievements) {
+    final index = _library.indexWhere((e) => e.mediaId == mediaId);
+    if (index >= 0) {
+      final entry = _library[index];
+      entry.cachedAchievements = achievements;
+      entry.updateGameAchievementProgress();
+      _persistLibrary();
+      notifyListeners();
+    }
+  }
+
   // Add play / watch session to timeline
   void addSession(PlaySession session) {
     _sessions.insert(0, session);
@@ -359,6 +505,13 @@ class DatabaseService extends ChangeNotifier {
   void clearAllData() {
     _library.clear();
     _sessions.clear();
+    _categories.clear();
+    _categories.add(CustomCategory(
+      id: 'cat_now_playing',
+      name: 'Now Playing',
+      showOnHome: true,
+      order: 0,
+    ));
     _steamProfile = null;
     _malUsername = null;
     _anilistUsername = null;
@@ -367,6 +520,7 @@ class DatabaseService extends ChangeNotifier {
     _persistSteamProfile();
     _persistLibrary();
     _persistSessions();
+    _persistCategories();
     notifyListeners();
   }
 
